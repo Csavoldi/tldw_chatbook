@@ -17608,7 +17608,7 @@ class ChatScreen(BaseAppScreen):
         controller = self._console_chat_controller
         if controller is not None:
             controller.on_console_view_visibility_changed(False)
-        self._release_claimed_conversation_settings_return()
+        self._settings_navigation._release_claimed_conversation_settings_return()
         # The debounced sidebar write is async and its read-modify-write of
         # ui_state.toml is unlocked, so consecutive suspends must SERIALIZE
         # (Qodo #2420 finding 6: a rapid leave/return/leave could let the
