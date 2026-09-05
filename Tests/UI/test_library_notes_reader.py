@@ -59,6 +59,7 @@ def test_folder_files_reader_authority_scaffold_is_distinct() -> None:
 
     assert set(get_args(library_screen_module.LibraryReaderDestination)) == {
         "media",
+        "collections",
         "conversations",
         "notes",
         "notes_files",
@@ -260,6 +261,7 @@ async def test_database_notes_capability_inventory_and_modes(
         )
         note = SimpleNamespace(
             kind="note",
+            placement_id="note:folder-1:note-1:member-1",
             protected=False,
             folder_id="folder-1",
             note_id="note-1",
@@ -343,6 +345,8 @@ async def test_database_notes_capability_inventory_and_modes(
                 "note_id": "note-1",
                 "destination_folder_id": "folder-2",
                 "source_folder_id": "folder-1",
+                "source_membership_id": "member-1",
+                "source_placement_id": "note:folder-1:note-1:member-1",
                 "membership_version": 11,
                 "protected": False,
             },
@@ -353,6 +357,8 @@ async def test_database_notes_capability_inventory_and_modes(
             {
                 "folder_id": "folder-1",
                 "note_id": "note-1",
+                "source_membership_id": "member-1",
+                "source_placement_id": "note:folder-1:note-1:member-1",
                 "expected_version": 11,
                 "protected": False,
             },
