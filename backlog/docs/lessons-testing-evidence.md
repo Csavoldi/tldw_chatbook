@@ -13082,3 +13082,23 @@ failed too (`#library-notes-row-0` is a flat-list id; the tree indexes its
 note rows across its folder rows). That line was already red at the wave base,
 which had never reached it — a test that fails early hides whatever fails
 later, so re-run to green rather than to "past my line".
+
+## An isolated helper can execute the editable install's other checkout
+
+**TASK-31638, 2026-09-05.** The stale-write and agent-worktree tests passed in
+the repository's installed checkout but returned `worker_crashed` from an
+isolated `python -I -m ...` workspace helper in a linked review worktree. The
+helper intentionally strips `PYTHONPATH`; the environment's editable install
+therefore resolved the original checkout rather than the worktree under test.
+The provider translated that crash into its correct fail-closed private-scratch
+refusal, which made 20 filesystem assertions look like an authority regression.
+Replacing only the test execution seam with the existing in-process protocol
+harness made the same requests exercise the current worktree and exposed one
+order-sensitive dynamic-worktree executor gap, fixed by routing admitted roots
+through that harness too.
+
+**What to do.** For branch or linked-worktree verification, first prove which
+source tree a spawned isolated Python helper imports. If isolation deliberately
+removes checkout paths, use a test-only in-process protocol harness for behavior
+tests and keep separate executor-containment tests for the subprocess boundary;
+otherwise a green or red result may describe another checkout's code.
