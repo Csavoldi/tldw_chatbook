@@ -4037,7 +4037,7 @@ class LibraryNotesController:
                 self._capture_library_notes_browse_return_receipt()
             )
         self._evacuate_library_notes_authority_focus("database")
-        self._supersede_library_notes_navigation()
+        self._supersede_library_notes_navigation(render=False)
         # Database Notes and Folder Files are independent retained authorities.
         # The database coordinator has already flushed above; keep its loaded
         # selection/editor projection so returning from Folder Files resumes it.
