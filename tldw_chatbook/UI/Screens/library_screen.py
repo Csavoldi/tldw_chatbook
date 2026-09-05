@@ -10732,6 +10732,7 @@ class LibraryScreen(BaseAppScreen):
             kind,
             allow_screen_fallback=False,
             projection_owned=True,
+            sync_prompt_work=kind != "prompts",
         )
 
     async def _repair_library_entry_canvas_owner(self) -> bool:
@@ -11342,7 +11343,7 @@ class LibraryScreen(BaseAppScreen):
 
         if (
             local_list_surface
-            and shell.canvas_kind != "skills"
+            and shell.canvas_kind not in {"prompts", "skills"}
             and self._library_lookup_error is not None
         ):
             expected_selector = "#library-canvas-error"
@@ -11386,6 +11387,7 @@ class LibraryScreen(BaseAppScreen):
                     generation,
                     route_key,
                 ),
+                sync_prompt_work=sync_kind != "prompts",
             ):
                 if sync_kind == "conversations":
                     self._ensure_library_conversation_reader_selection()
@@ -11450,6 +11452,7 @@ class LibraryScreen(BaseAppScreen):
                         generation,
                         route_key,
                     ),
+                    sync_prompt_work=sync_kind != "prompts",
                 ):
                     return self._retry_or_fail_library_entry_reconcile(
                         generation, route_key
