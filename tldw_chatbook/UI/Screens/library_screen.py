@@ -2116,12 +2116,6 @@ class LibraryScreen(BaseAppScreen):
             resolve_root_collision,
         )
         from ...Notes.note_import_receipts import NoteImportReceiptRepository
-        from ..Library_Modules.library_collections_controller import (
-            LibraryCollectionsController,
-        )
-        from ..Library_Modules.library_conversation_reader_controller import (
-            LibraryConversationReaderController,
-        )
         from ..Library_Modules.library_ingest_controller import (
             LibraryIngestController,
         )
@@ -2140,9 +2134,6 @@ class LibraryScreen(BaseAppScreen):
         )
         from ..Library_Modules.library_prompts_controller import (
             LibraryPromptsController,
-        )
-        from ..Library_Modules.library_rag_search_controller import (
-            LibraryRagSearchController,
         )
         from ..Library_Modules.wiring import build_library_controllers
         from ..Library_Modules.library_skill_import_controller import (
