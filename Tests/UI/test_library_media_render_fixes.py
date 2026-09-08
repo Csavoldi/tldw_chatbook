@@ -60,6 +60,7 @@ from Tests.UI.test_library_media_reader_flow import (
     _wait_for_detail_call,
 )
 from Tests.UI.test_library_shell import (
+    _LIBRARY_ROW_FOCUS_EDGE,
     LibraryGlobalKeyProductionCSSHarness,
     LibraryProductionCSSHarness,
     _open_media_find,
@@ -2973,9 +2974,14 @@ def _painted_item_lines(host, screen) -> list[str]:
     """Return the painted row-scroll lines of the Media list."""
     scroll = screen.query_one("#library-media-row-scroll")
     strips = list(host.screen._compositor.render_strips())
-    return [
+    lines = [
         strips[y].crop(scroll.region.x, scroll.region.right).text
         for y in range(scroll.region.y, min(scroll.region.bottom, len(strips)))
+    ]
+    metadata_edge = f"{_LIBRARY_ROW_FOCUS_EDGE}    "
+    return [
+        line[1:] if line.startswith(metadata_edge) else line
+        for line in lines
     ]
 
 
@@ -3058,10 +3064,11 @@ def _painted_media_rows(host, screen) -> tuple[list[str], list[str]]:
 async def test_media_rows_paint_analysed_only_for_analysed_items(size):
     """task-28008: the row says which items already carry an analysis, in words.
 
-    What this pins about width: BOTH parametrized sizes resolve the Items
-    pane to 52 cells (the resolver's automatic width here), and the 24-cell
-    ``document · 5m · analysed`` paints whole in it, indented, with room to
-    spare. The narrower 36-cell FLOOR is pinned separately by
+    What this pins about width: the narrow size resolves the Items pane to
+    52 cells, while the wide size holds the empty Reader on its 46-cell floor
+    and gives the surplus to Items. In both cases the 24-cell
+    ``document · 5m · analysed`` paints whole, indented, with room to spare.
+    The narrower 36-cell FLOOR is pinned separately by
     ``test_analysed_secondary_survives_the_36_cell_items_floor`` -- a
     ``>= 36`` assertion here would have claimed a floor that never ran.
     """
@@ -3081,7 +3088,13 @@ async def test_media_rows_paint_analysed_only_for_analysed_items(size):
             "document · 5m",
             "document · 5m",
         ], secondaries
-        assert _items_pane_width(screen) == 52
+        items_width = _items_pane_width(screen)
+        if size == (235, 52):
+            reader = screen.query_one("#library-media-reader-shell")
+            assert items_width == 145
+            assert reader.work.region.width == 46
+        else:
+            assert items_width == 52
 
 
 @pytest.mark.parametrize("size", [(235, 52), (100, 30)], ids=["wide", "narrow"])
@@ -4190,10 +4203,10 @@ async def test_more_row_actions_share_one_grid_column_grammar(size):
 
     "Open manager" used to sit one cell further in than its siblings. PR H
     replaced the More disclosure's bare Vertical with a single ``ItemGrid``
-    (``#library-media-reader-more-actions``, fixed 15-16 cell columns), so
-    every action in the row is laid out on the same column origins by
-    construction. This is the painted proof, kept as a pin so the column
-    grammar cannot silently drift back.
+    (``#library-media-reader-more-actions``, fixed 17-18 cell columns), so
+    every action in the row is laid out on the same column origins before the
+    destructive action's deliberate two-cell margin. This is the painted
+    proof, kept as a pin so the column grammar cannot silently drift back.
     """
     host = _review_state_host()
     async with host.run_test(size=size) as pilot:
@@ -4212,10 +4225,16 @@ async def test_more_row_actions_share_one_grid_column_grammar(size):
             "library-media-open",
             "library-media-delete",
         ], actions
-        columns = sorted({action.region.x for action in actions})
+        delete = actions[-1]
+        assert delete.styles.margin.left == 2
+        origins = {
+            action.region.x - (delete.styles.margin.left if action is delete else 0)
+            for action in actions
+        }
+        columns = sorted(origins)
         # One pitch for the whole row: "Open manager" starts exactly one
-        # column after "Edit metadata" and one before "Move to trash",
-        # never on an origin (or an extra cell of indent) of its own.
+        # column after "Edit metadata" and one before "Move to trash" once
+        # that destructive action's deliberate two-cell gap is accounted for.
         pitches = {
             second - first for first, second in zip(columns, columns[1:])
         }
@@ -4225,7 +4244,9 @@ async def test_more_row_actions_share_one_grid_column_grammar(size):
         # ...and every row of the grid starts at the same leftmost column.
         rows: dict[int, list[int]] = {}
         for action in actions:
-            rows.setdefault(action.region.y, []).append(action.region.x)
+            rows.setdefault(action.region.y, []).append(
+                action.region.x - (delete.styles.margin.left if action is delete else 0)
+            )
         assert {min(xs) for xs in rows.values()} == {columns[0]}, rows
         painted = _painted(host, grid.region)
         assert "Open manager" in painted, painted

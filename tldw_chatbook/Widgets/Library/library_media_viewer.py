@@ -429,14 +429,14 @@ class LibraryMediaViewer(PostRecomposeCallback, Vertical):
             # Horizontal because the four labels need ~60 cells and the
             # Reader is only ~46 wide at 100x30, where a Horizontal clips
             # the fourth action off the pane outright; the grid reflows it
-            # onto a second row instead. Column width is the longest label
-            # (13) plus two cells of gutter -- the toolbar rule zeroes these
-            # buttons' own padding, so the label is the whole button.
+            # onto a second row instead. Reserve the longest label (13),
+            # two cells of gutter, and the destructive action's two-cell
+            # left margin so its full "Move to trash" label remains visible.
             with ItemGrid(
                 id="library-media-reader-more-actions",
                 classes="ds-toolbar",
-                min_column_width=15,
-                max_column_width=16,
+                min_column_width=17,
+                max_column_width=18,
             ):
                 if not self.external_detail:
                     yield Button("Edit metadata", id="library-media-edit", compact=True)

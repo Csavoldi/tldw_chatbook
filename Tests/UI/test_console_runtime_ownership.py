@@ -32,7 +32,11 @@ from textual.events import Key
 
 from Tests.UI.app_factory import _build_test_app
 from Tests.UI.test_console_fleet_wake_wiring import _attach_real_dbs
-from Tests.UI.test_console_native_chat_flow import _configure_native_ready_console
+from Tests.UI.test_console_native_chat_flow import (
+    _configure_native_ready_console,
+    _unmount_installed_console,
+)
+from Tests.UI.test_console_live_work_handoffs import _wait_for_production_chat_screen
 from Tests.UI.test_destination_shells import _wait_for_selector
 from tldw_chatbook.Chat.console_chat_models import ConsoleRunState, ConsoleRunStatus
 from tldw_chatbook.Chat.console_runtime import (
@@ -361,11 +365,12 @@ def test_attach_and_detach_cover_exactly_the_same_slot_set():
 
 @pytest.mark.asyncio
 async def test_second_console_visit_reuses_the_runtime(tmp_path):
-    """The runtime SURVIVES leaving Console -- this landing's central change.
+    """The runtime survives actual Console removal and screen recreation.
 
     Replaces Task 1's `test_second_console_visit_gets_a_new_runtime`, which
     pinned the opposite (dispose-at-unmount) and said in its own docstring
-    that it must be rewritten here.
+    that it must be rewritten here. TASK-31520 normally suspends the cached
+    screen on navigation; this test explicitly exercises its removal path.
     """
     app = _build_test_app()
     _attach_real_dbs(app, tmp_path)
@@ -373,11 +378,10 @@ async def test_second_console_visit_reuses_the_runtime(tmp_path):
     terminal_manager = app.terminal_session_manager
 
     async with app.run_test(size=(160, 48)) as pilot:
-        chat = ChatScreen(app)
-        await app.push_screen(chat)
-        app._initial_screen_pushed = True
-        app.current_tab = "chat"
-        await pilot.pause()
+        chat = await _wait_for_production_chat_screen(app, pilot)
+        assert [
+            screen for screen in app.screen_stack if isinstance(screen, ChatScreen)
+        ] == [chat]
         await _wait_for_selector(chat, pilot, "#console-native-composer")
 
         controller_one = chat._ensure_console_chat_controller()
@@ -400,6 +404,7 @@ async def test_second_console_visit_reuses_the_runtime(tmp_path):
         # ---- leave Console through the real navigation API ---------------
         await app.handle_screen_navigation(NavigateToScreen("library"))
         await pilot.pause()
+        await _unmount_installed_console(app, chat)
         assert chat not in app.screen_stack, "Console must actually unmount"
         # The VISIT ended: its cancellation Event is set (which is also what
         # keeps `_attempt`'s wake gate refusing while nothing is mounted)...
@@ -434,9 +439,9 @@ async def test_second_console_visit_reuses_the_runtime(tmp_path):
         # ---- return to Console -------------------------------------------
         await app.handle_screen_navigation(NavigateToScreen("chat"))
         await pilot.pause()
-        chat_two = app.screen
+        chat_two = await _wait_for_production_chat_screen(app, pilot)
         assert isinstance(chat_two, ChatScreen), type(chat_two).__name__
-        assert chat_two is not chat, "screens are never cached"
+        assert chat_two is not chat, "the removed Console must be recreated"
         await _wait_for_selector(chat_two, pilot, "#console-native-composer")
 
         controller_two = chat_two._ensure_console_chat_controller()
@@ -459,16 +464,16 @@ async def test_second_console_visit_reuses_the_runtime(tmp_path):
 
 @pytest.mark.asyncio
 async def test_post_unmount_raw_refusal_restores_on_second_console_visit(tmp_path):
+    """Bank refusals after actual removal, not a normal cached suspension."""
     app = _build_test_app()
     _attach_real_dbs(app, tmp_path)
     _configure_native_ready_console(app)
 
     async with app.run_test(size=(160, 48)) as pilot:
-        chat = ChatScreen(app)
-        await app.push_screen(chat)
-        app._initial_screen_pushed = True
-        app.current_tab = "chat"
-        await pilot.pause()
+        chat = await _wait_for_production_chat_screen(app, pilot)
+        assert [
+            screen for screen in app.screen_stack if isinstance(screen, ChatScreen)
+        ] == [chat]
         await _wait_for_selector(chat, pilot, "#console-native-composer")
 
         store = chat._ensure_console_chat_store()
@@ -486,6 +491,7 @@ async def test_post_unmount_raw_refusal_restores_on_second_console_visit(tmp_pat
 
         await app.handle_screen_navigation(NavigateToScreen("library"))
         await pilot.pause()
+        await _unmount_installed_console(app, chat)
         assert chat not in app.screen_stack
 
         controller_a._append_local_error = lambda _session_id, _text: None
@@ -494,7 +500,7 @@ async def test_post_unmount_raw_refusal_restores_on_second_console_visit(tmp_pat
 
         await app.handle_screen_navigation(NavigateToScreen("chat"))
         await pilot.pause()
-        chat_two = app.screen
+        chat_two = await _wait_for_production_chat_screen(app, pilot)
         assert isinstance(chat_two, ChatScreen)
         await _wait_for_selector(chat_two, pilot, "#console-native-composer")
 
@@ -727,15 +733,19 @@ def test_sync_constructed_app_starts_canvas_policy_watch_in_running_lifecycle(
     runtime = app.console_runtime
     assert isinstance(runtime, ConsoleRuntime)
     assert runtime._canvas_policy_watch_task is None
+    assert runtime.canvas_controller is None
 
     async def exercise_app_lifecycle() -> None:
         async with app.run_test(size=(120, 40)) as pilot:
-            await pilot.pause()
+            await _wait_for_production_chat_screen(app, pilot)
             watcher = runtime._canvas_policy_watch_task
             assert watcher is not None
             assert not watcher.done()
             assert runtime.canvas_gateway is None
-            assert runtime.canvas_controller is None
+            owner = runtime.canvas_controller
+            assert owner is not None
+            assert runtime.chat_store.canvas_turn_controller is owner
+            assert runtime.chat_store.canvas_promotion_participant is owner
 
             # Starting the lifecycle again must retain the sole watcher.
             runtime.start_async_lifecycles()
