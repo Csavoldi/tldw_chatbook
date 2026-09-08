@@ -563,6 +563,8 @@ class ConsoleWorkspaceController:
                 terminal lines (or ``None`` before layout) so the browser's
                 per-section/group visible-row cap can adapt to fill the
                 available space.
+            notify_character_navigation: Optionally report character navigation
+                feedback through the owning screen's notification boundary.
         """
         self._screen = screen
         self._notify_character_navigation = notify_character_navigation

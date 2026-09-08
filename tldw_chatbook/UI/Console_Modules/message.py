@@ -2821,7 +2821,7 @@ class ConsoleMessageController:
                 content=content,
                 note_id=None,
                 version=None,
-                user_id=getattr(self.app_instance, "current_user", None)
+                user_id=getattr(self.app_instance, "notes_user_id", None)
                 or "default_user",
                 workspace_id=None,
                 keywords=["console"],
