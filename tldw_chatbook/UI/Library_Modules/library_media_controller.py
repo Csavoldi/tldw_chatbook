@@ -1859,7 +1859,7 @@ class LibraryMediaController:
 
     def _build_library_media_state(self) -> LibraryMediaCanvasState:
         """Build Media rows only from the controller's retained exact page."""
-        controller = self._library_media_browse_controller
+        browse = self._library_media_browse_controller.state
         reader = self._library_media_reader_session
         # Initial page projection may clear the Items cursor while a deep link
         # loads. The local Reader retains that request's canonical identity.
@@ -1868,7 +1868,7 @@ class LibraryMediaController:
             if self._library_media_view == "viewer" and not reader.external_detail
             else self._selected_media_id
         )
-        if controller.applied_result is None:
+        if browse.applied_result is None:
             return build_library_media_state(
                 (),
                 active_type=self._library_media_type_filter,
@@ -1885,10 +1885,10 @@ class LibraryMediaController:
                 **self._library_media_analyze_receipt_fields(),
             )
         state = build_library_media_browse_state(
-            controller.applied_result,
-            type_options=controller.type_options,
+            browse.applied_result,
+            type_options=browse.type_options,
             retained_items=self._decorate_library_media_reviewed(
-                controller.retained_items
+                browse.retained_items
             ),
             selected_id=selected_id,
             select_mode=self._library_media_select_mode,
@@ -1909,8 +1909,8 @@ class LibraryMediaController:
             ),
             loaded_id=self._library_media_reader_session.loaded_id or "",
         )
-        if controller.loading and controller.inflight_scope is not None:
-            state = dataclasses.replace(state, query=controller.inflight_scope.query)
+        if browse.loading and browse.inflight_scope is not None:
+            state = dataclasses.replace(state, query=browse.inflight_scope.query)
         if self._library_media_select_mode:
             self._library_media_row_selection.reconcile(r.media_id for r in state.rows)
         return state
@@ -1982,12 +1982,12 @@ class LibraryMediaController:
 
     def _library_media_canvas_presentation(self) -> dict[str, Any]:
         """Return controller-owned inputs shared by every Media canvas path."""
-        controller = self._library_media_browse_controller
+        browse = self._library_media_browse_controller.state
         backing_id = self._library_media_selected_backing_id()
         db = getattr(self.app_instance, "media_db", None)
         can_rename = self._library_media_can_rename_speakers(db, backing_id)
         return {
-            "pager": controller.pager,
+            "pager": browse.pager,
             "type_options": self._library_media_type_options(),
             # Final review M-3: not ``stale_copy`` -- a failed Retry
             # overwrites that with "Couldn't retry · <reason>", which does
@@ -1995,7 +1995,7 @@ class LibraryMediaController:
             # is disabled. ``stale_reason`` names why the page went stale
             # and a failed retry never touches it.
             "stale_action_reason": (
-                controller.stale_reason if controller.freshness == "stale" else ""
+                browse.stale_reason if browse.freshness == "stale" else ""
             ),
             "mutation_action_reason": (
                 "Media change in progress."
@@ -2006,7 +2006,7 @@ class LibraryMediaController:
             # task-31632: the page-or-facet load failure the canvas paints as
             # ONE recovery callout, Retry inside it. ``None`` whenever the
             # last load of each fence succeeded.
-            "load_failure": controller.failure,
+            "load_failure": browse.failure,
             # task-31635 fix round 1: the NARROWER predicate the list-wide
             # actions gate on -- a failure with no rows behind it. The
             # callout above is broader on purpose (a page failure retains
@@ -2203,15 +2203,15 @@ class LibraryMediaController:
 
     def _request_library_media_facets(self) -> Any | None:
         return self._library_media_browse_controller.request_facets(
-            fingerprint=self._library_media_browse_controller.requested_scope.fingerprint
+            fingerprint=self._library_media_browse_controller.state.requested_scope.fingerprint
         )
 
     def _request_library_media_filter(self, query: str) -> None:
         """Request authoritative search while preserving the unfiltered anchor."""
         query = self._safe_text(query, max_length=200).strip()
-        controller = self._library_media_browse_controller
-        applied = controller.applied_scope or controller.mutation_refresh_scope
-        if query == controller.requested_scope.query:
+        browse = self._library_media_browse_controller.state
+        applied = browse.applied_scope or browse.mutation_refresh_scope
+        if query == browse.requested_scope.query:
             return
         self._clear_library_media_selection_for_scope_change()
         if query:
@@ -2254,11 +2254,11 @@ class LibraryMediaController:
 
     def _load_library_media_list_if_needed(self) -> None:
         """Load the exact list after a direct viewer had no applied page."""
-        controller = self._library_media_browse_controller
-        if controller.applied_result is not None:
+        browse = self._library_media_browse_controller.state
+        if browse.applied_result is not None:
             return
         self._request_library_media_browse(
-            controller.mutation_refresh_scope,
+            browse.mutation_refresh_scope,
             focus_identity="#library-media-row-0",
         )
         self._request_library_media_facets()
@@ -2269,7 +2269,7 @@ class LibraryMediaController:
         """Request one page from the complete last-applied Media scope."""
         self._clear_library_media_selection_for_scope_change()
         return self._request_library_media_browse(
-            self._library_media_browse_controller.scope_for_page(page),
+            self._library_media_browse_controller.state.scope_for_page(page),
             focus_identity=focus_identity,
         )
 
@@ -2651,7 +2651,7 @@ class LibraryMediaController:
             return
         requested = str(getattr(event.option, "choice_value", "") or "")
         self._library_media_sort_choices_visible = False
-        current = self._library_media_browse_controller.mutation_refresh_scope.sort_by
+        current = self._library_media_browse_controller.state.mutation_refresh_scope.sort_by
         valid = {value for value, _ in MEDIA_SORT_CHOICES}
         if requested not in valid or requested == current:
             _sync_library_canvas(
@@ -2669,7 +2669,7 @@ class LibraryMediaController:
     ) -> Any | None:
         """Request page one after changing only the applied Media sort order."""
         self._clear_library_media_selection_for_scope_change()
-        applied = self._library_media_browse_controller.mutation_refresh_scope
+        applied = self._library_media_browse_controller.state.mutation_refresh_scope
         return self._request_library_media_browse(
             dataclasses.replace(applied, sort_by=sort_by, page=1),
             focus_identity=focus_identity,
@@ -2681,10 +2681,10 @@ class LibraryMediaController:
         event.stop()
         if self._library_media_bulk_delete_in_flight:
             return
-        applied = self._library_media_browse_controller.applied_scope
+        applied = self._library_media_browse_controller.state.applied_scope
         if (
             applied is None
-            or self._library_media_browse_controller.pager.previous_disabled
+            or self._library_media_browse_controller.state.pager.previous_disabled
         ):
             return
         self._request_library_media_page(
@@ -2698,8 +2698,8 @@ class LibraryMediaController:
         event.stop()
         if self._library_media_bulk_delete_in_flight:
             return
-        applied = self._library_media_browse_controller.applied_scope
-        if applied is None or self._library_media_browse_controller.pager.next_disabled:
+        applied = self._library_media_browse_controller.state.applied_scope
+        if applied is None or self._library_media_browse_controller.state.pager.next_disabled:
             return
         self._request_library_media_page(
             applied.page + 1,
