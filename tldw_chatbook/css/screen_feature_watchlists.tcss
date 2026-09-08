@@ -1,0 +1,470 @@
+/* ========================================
+ * GENERATED FILE - DO NOT EDIT DIRECTLY
+ * ========================================
+ * watchlists-owned rules split out of features/_watchlists.tcss
+ * by build_css.py (TASK-25812/TASK-24459). Loaded at the app or owning-screen
+ * stylesheet boundary; route-owned sheets are deferred until first visit.
+ * Edit features/_watchlists.tcss and re-run build_css.py.
+ * ======================================== */
+
+$ds-surface-panel: $panel;
+$ds-surface-raised: $surface;
+$ds-surface-inspector: $surface;
+$ds-grid-line: $surface-lighten-1;
+$ds-column-line: $surface-lighten-2;
+$ds-text-primary: $text;
+$ds-text-muted: $text-muted;
+$ds-text-disabled: $text-disabled;
+$ds-action-focus: $primary;
+$ds-focus-fg: $ds-text-primary;
+$ds-focus-bg: $block-cursor-blurred-background;
+$ds-focus-accent: $primary;
+$ds-input-focus-border: $primary;
+$ds-input-focus-bg: $ds-focus-bg;
+$ds-input-focus-accent: $primary;
+$ds-control-edge: $surface-lighten-2;
+$ds-status-ready: $success;
+$ds-status-running: $primary;
+$ds-status-info: $accent;
+$ds-status-warning: $warning;
+$ds-status-approval-required: $warning;
+$ds-status-blocked: $error;
+$ds-status-error: $error;
+$ds-status-error-readable: $text-error;
+$ds-text-placeholder: $text-muted;
+$ds-text-disabled-readable: $text-muted;
+$ds-status-paused: $warning;
+$ds-status-unsaved: $warning;
+$ds-status-recovered: $success;
+$ds-authority-local: $success;
+$ds-authority-server: $primary;
+$ds-authority-workspace: $accent;
+$ds-authority-remote-only: $warning;
+$ds-source-role-context: $accent;
+$ds-source-role-evidence: $accent;
+$ds-source-role-editable-target: $warning;
+$ds-source-role-output-seed: $secondary;
+$ds-active-fg: $text-primary;
+$ds-value-fg: $text-accent;
+
+$ds-chat-user-accent: $text-primary;
+$ds-chat-user-accent-dark: #8bd5ff;
+$ds-chat-user-accent-light: #004d6d;
+$ds-chat-assistant-accent-dark: #ffc473;
+$ds-chat-assistant-accent-light: #704000;
+$ds-chat-rp-speech-dark: #8bd5ff;
+$ds-chat-rp-speech-light: #004d6d;
+$ds-chat-rp-thought-dark: #2dd4bf;
+$ds-chat-rp-thought-light: #0b5d4a;
+$ds-chat-rp-action-dark: #d7b2ff;
+$ds-chat-rp-action-light: #5e3578;
+$ds-chat-rp-strong-dark: #fff0a6;
+$ds-chat-rp-strong-light: #665000;
+$ds-destination-header-height: 1;
+$ds-destination-compact-strip-height: 1;
+$ds-home-dashboard-grid-height: 18;
+$ds-home-control-button-height: 1;
+$ds-home-compact-row-height: 1;
+$ds-home-followup-row-height: 6;
+$ds-console-workspace-grid-height: 1fr;
+$ds-console-composer-height: 1;
+$ds-library-mode-chip-height: 1;
+$ds-library-mode-chip-min-width: 10;
+$ds-library-source-action-width: auto;
+$ds-library-source-action-min-width: 0;
+$ds-library-source-action-height: 1;
+$ds-library-source-browser-width: 31;
+
+
+.tldw-agentic-split-preamble-end { }
+
+/* ========================================
+ * FEATURES: Watchlists
+ * ========================================
+ * Styles for the WatchlistsCollectionsScreen dashboard and panes.
+ * ======================================== */
+
+/* Overview dashboard grid and cards.
+ *
+ * TASK-998, second finding. The UAT called these "seven empty bordered
+ * cards" and read it as a first-run problem. It is not: they were empty in
+ * EVERY state, populated or not, and had been since the dashboard shipped.
+ * Measured at 160x42 with a source present:
+ *
+ *     #overview-total-sources  region=Region(height=1)  content=Size(height=0)
+ *
+ * Two compounding causes, one per rule below.
+ *
+ * The grid had no `height`, so it took `Grid`'s `1fr` default and was handed
+ * six rows for three rows of cards plus two gutters -- about one row each.
+ * `height: auto` sizes it to the cards instead, which is the only way a fixed
+ * card height means anything.
+ *
+ * And `padding: 1` inside `height: 4` with a `round` border left ZERO content
+ * rows: 4 - 2 (border) - 2 (padding) = 0. Even given its four rows the card
+ * could not have painted the label or the number. The padding is now
+ * horizontal only, so the two lines the card actually renders
+ * ("Total sources" / the value) have exactly the two rows they need.
+ *
+ * This is the same family as TASK-995 and task-875 elsewhere on this screen:
+ * a container too short for its children, where the border is the only thing
+ * that survives.
+ */
+#watchlists-overview-grid {
+    layout: grid;
+    grid-size: 3;
+    grid-gutter: 1;
+    height: auto;
+    margin: 1 0;
+}
+
+.overview-card {
+    height: 4;
+    padding: 0 1;
+    background: $surface;
+    border: round $surface-lighten-1;
+    text-align: center;
+    text-style: bold;
+}
+
+/* Failed runs table in overview */
+#overview-failed-runs {
+    height: 1fr;
+    border: round $surface-lighten-1;
+}
+
+/* Empty state actions */
+#wc-empty-actions {
+    height: auto;
+    margin: 1 0;
+}
+
+/* Section detail title */
+#watchlists-detail-title {
+    text-style: bold;
+    color: $text;
+}
+
+/* Workbench: stable chrome above a permanent horizontal centre. */
+.watchlists-workbench {
+    layout: vertical;
+    width: 100%;
+    height: 1fr;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+}
+
+#wl-workbench-body {
+    layout: horizontal;
+    width: 100%;
+    height: 1fr;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.watchlists-region-left_rail {
+    width: 28fr;
+    min-width: 24;
+    max-width: 28;
+    height: 100%;
+    border: round $ds-grid-line;
+}
+
+/* Keeps its region border: the ONE box per region is
+ * drawn by the region wrapper, and the pane inside is stripped by ID below
+ * (`#watchlists-inspector-pane`). See that rule for why the region, not the
+ * pane, is the survivor.
+ */
+.watchlists-region-right_rail {
+    width: 34fr;
+    min-width: 30;
+    max-width: 34;
+    height: 100%;
+    border: round $ds-grid-line;
+}
+
+.watchlists-region-right_rail Button {
+    width: 100%;
+    text-wrap: wrap;
+}
+
+/* Cross-cutting tab/status chrome stays above the body on every section. */
+#wl-centre-status {
+    width: 100%;
+    height: auto;
+}
+
+/* Exactly one box per region (Task 6, fix round 3): the *region wrapper*
+ * draws it and the pane inside draws none, rather than the other way round.
+ *
+ * These two ids are declared in `components/_agentic_terminal.tcss` (the
+ * shared destination-pane block, ~line 3544) with `border: solid
+ * $ds-grid-line`. An ID selector here matches that block's specificity
+ * exactly and wins on source order -- `features/` loads after `components/`
+ * in `build_css.py` -- so this narrows to Watchlists' panes and touches
+ * none of the other destinations that share that block. (An earlier round
+ * wrongly believed stripping the border required editing the shared
+ * `.destination-workbench-pane` class and thus 13 other screens.)
+ *
+ * Suppressing the PANE rather than the REGION is what makes the region
+ * boxes uniformly `round` and puts each region's scrollbar inside the box
+ * that owns it.
+ */
+#watchlists-detail-pane,
+#watchlists-inspector-pane {
+    border: none;
+}
+
+/* The Inspector can be taller than its rail at ordinary terminal heights.
+ * Bound it to the region and give it the scroll path its `height: auto`
+ * `.ds-inspector` base style otherwise lacks; without this, the Console
+ * handoff action is painted below the viewport and cannot be reached.
+ */
+#watchlists-inspector-pane {
+    height: 100%;
+    min-height: 0;
+    overflow-y: auto;
+}
+
+/* ITEMS is the management canvas, but a bounded Feed Items side pane on Read. */
+.watchlists-region-items {
+    width: 44fr;
+    min-width: 0;
+    height: 100%;
+    min-height: 0;
+    border: round $ds-grid-line;
+}
+
+.watchlists-read-mode .watchlists-region-items {
+    width: 40fr;
+    min-width: 32;
+    max-width: 40;
+    height: 100%;
+    overflow: hidden;
+}
+
+.watchlists-read-mode #watchlists-detail-pane,
+.watchlists-read-mode #watchlists-items-pane {
+    height: 100%;
+    min-height: 0;
+}
+
+/* Reader is the permanent flexing centre; only its article body scrolls. */
+.watchlists-region-content {
+    width: 44fr;
+    min-width: 0;
+    height: 100%;
+    min-height: 0;
+    border: round $ds-grid-line;
+    overflow: hidden;
+}
+
+.watchlists-has-expanded-side-pane .watchlists-region-content,
+.watchlists-has-expanded-side-pane .watchlists-region-items {
+    min-width: 44;
+}
+
+.watchlists-has-expanded-side-pane.watchlists-read-mode .watchlists-region-items {
+    min-width: 32;
+}
+
+#watchlists-content-pane {
+    height: 1fr;
+    min-height: 0;
+}
+
+.watchlists-region-title {
+    height: 1;
+    text-style: bold;
+    color: $ds-text-primary;
+}
+
+.watchlists-region-placeholder {
+    color: $ds-text-muted;
+}
+
+.watchlists-pane-grip {
+    width: 5;
+    min-width: 5;
+    max-width: 5;
+    height: 100%;
+    min-height: 0;
+    padding: 0;
+    margin: 0;
+    border: none;
+    border-left: solid $ds-grid-line;
+    color: $ds-text-muted;
+    background: $ds-surface-panel;
+    text-align: center;
+    content-align: center middle;
+}
+
+.watchlists-pane-grip:focus,
+.watchlists-pane-grip:hover:focus {
+    border: none;
+    border-left: solid $ds-action-focus;
+    outline: none;
+    color: $ds-focus-fg;
+    background: $ds-focus-bg;
+}
+
+/* Section tab strip (Task 3, styled in Task 6 fix round 3 -- folded in by
+ * the reviewer because the active section was invisible).
+ *
+ * `WatchlistsTabStrip.__init__` pins the strip to `height: 1`, and
+ * `.watchlists-tab` carried no styling of its own, so the active tab picked
+ * up the global `.is-active { border: round $ds-action-focus }`
+ * (`components/_agentic_terminal.tcss`). A `round` border needs 2 lines
+ * before it has a content line at all, so inside a 1-row strip the button
+ * rendered as its own top border and nothing else: the active section's
+ * LABEL never painted, which is the one thing the strip exists to show.
+ *
+ * Fixed here rather than in the shared sheet: that global rule is used by
+ * many screens, and it is overridden the same way wherever a height-1
+ * control meets it -- `#mcp-hub-rail Button.mcp-rail-row.is-active` and
+ * `#mcp-mode-strip .mcp-mode-chip.is-active` in `_agentic_terminal.tcss`
+ * both carry exactly this `border: none` + `text-style: bold underline`
+ * pair. This mirrors the MCP mode strip, which is the same widget shape (a
+ * one-row strip of mode chips), rather than inventing a new active look.
+ */
+.watchlists-tab-strip Button.watchlists-tab {
+    width: auto;
+    min-width: 10;
+    height: 1;
+    padding: 0 1;
+    border: none;
+}
+
+/* Focus must not impersonate the active tab (bold underline above), and the
+ * active tab must stay legible while focused -- same split the MCP mode
+ * strip uses.
+ */
+.watchlists-tab-strip .watchlists-tab:focus,
+.watchlists-tab-strip .watchlists-tab:hover:focus {
+    background: $ds-focus-bg;
+    color: $ds-focus-fg;
+    text-style: bold;
+    outline: none;
+    border: none;
+}
+
+/* TASK-998. The first-run panel that replaces the seven empty Overview cards.
+ *
+ * `height: auto` on both the wrapper and the body is the load-bearing pair.
+ * `Vertical` defaults to `height: 1fr`, so the wrapper would claim the whole
+ * region and re-create the "large box containing nothing" this task exists to
+ * remove; and a `Static` left at its default single row would clip multi-
+ * paragraph copy to its first line, which is the same class of defect as
+ * TASK-995 one region over. `text-wrap: wrap` because this copy has to
+ * survive the centre pane at 160 columns as well as at 235.
+ *
+ * No border. The region wrapper (`.watchlists-region-items`) already draws
+ * one box, and Task 6's rule for this screen is one border and one heading
+ * per region -- an inner box here would be the doubled-chrome defect that
+ * task removed.
+ */
+#overview-first-run {
+    width: 100%;
+    height: auto;
+    padding: 1 0;
+}
+
+.watchlists-first-run-title {
+    width: 100%;
+    height: auto;
+    text-style: bold;
+    color: $ds-text-primary;
+}
+
+.watchlists-first-run-body {
+    width: 100%;
+    height: auto;
+    padding: 1 0 0 0;
+    text-wrap: wrap;
+    color: $ds-text-muted;
+}
+
+/* TASK-2310: a compact, one-row inline label placed immediately before a
+ * filter/picker Select inside a `.destination-filter-strip` row (height: 1)
+ * -- Sources' type/status/active filters, Items' status filter, Artifacts'
+ * mode/preset/cadence pickers, Rules' condition/severity. UAT: these Selects
+ * painted bare resting values ("All ▾", "Off ▾") with no clue what
+ * they filter. Unlike `.sources-create-field-label` above (a
+ * `#sources-create-form`-scoped, height: 3 idiom for a full field row), this
+ * is generic and height: 1 to fit inside an EXISTING one-row toolbar strip --
+ * no new row, no extra height budget (the same TASK-995 constraint every
+ * `.destination-filter-strip` row already lives under). `color: $text-muted`
+ * keeps it visually secondary to the Select's own value, which is what the
+ * user is actually scanning for.
+ */
+.watchlists-inline-select-label {
+    width: auto;
+    height: 1;
+    content-align: left middle;
+    padding: 0 1 0 0;
+    color: $text-muted;
+}
+
+/* TASK-2313: a muted, one-line caption -- used for AC#4's empty-table
+ * guidance (Runs/Rules/Notifications, matching in spirit, not literal
+ * reuse, Overview's own first-run guidance so a genuinely empty list
+ * reads as "nothing here yet" rather than "broken") and for AC#6's
+ * persistent column-meaning legends (e.g. Items' Queued glyph).
+ */
+.watchlists-hint-line {
+    width: 100%;
+    height: auto;
+    color: $text-muted;
+    padding: 1 0;
+}
+
+#watchlists-backend-select {
+    width: 12;
+}
+
+/* TASK-1105 lived here. Clicking any Watchlists table row other than the
+ * first left the selection on row 0, so `Preview`, `Check now` and `Delete`
+ * all acted on the wrong source. The cause is the app-wide keyboard-focus
+ * fallback `*:focus { outline: solid $ds-focus-accent; }` (core/_reset.tcss):
+ * Textual paints an `outline` OVER a widget's outermost rendered lines, and
+ * the overwritten segments lose the `{"row", "column"}` metadata that
+ * `DataTable._on_click` needs, so the bottom row of a FOCUSED table is
+ * unclickable. The Sources table is three rows tall here (header + two rows),
+ * which left row 0 as the only reachable data row.
+ *
+ * It was fixed with `.watchlists-region DataTable:focus { outline: none; }`
+ * plus a `$ds-focus-bg`/`$ds-focus-fg` cursor recolour, scoped to this
+ * screen, and its notes called out that every other table in the app still
+ * had it. TASK-1160 promoted exactly those two rules to a bare
+ * `DataTable:focus` type selector in components/_lists.tcss, which every
+ * region here inherits unchanged, and removed this local copy so there is one
+ * mechanism rather than two.
+ * Tests/UI/test_watchlists_source_row_click_selects.py still guards the
+ * Watchlists behaviour end to end.
+ */
+
+/* TASK-1020. The Overview region's and the Inspector's third state: the
+ * overview worker has been started and has not answered yet. Muted like
+ * `.watchlists-region-placeholder` and `.watchlists-first-run-body` so a
+ * transient line does not read as an alert, and `height: auto` so it does not
+ * claim the region's rows on the way past.
+ */
+.watchlists-loading-state {
+    width: 100%;
+    height: auto;
+    text-wrap: wrap;
+    color: $ds-text-muted;
+}
+
+/* Belt-and-suspenders: whatever the `fr` split above computes for these
+ * four regions, the pane as a whole scrolls rather than letting any
+ * child's region extend silently past the terminal's own last row -- the
+ * exact failure mode the comment above already names for a single
+ * overlong body, now possible again one level up once a second
+ * list-over-body pair sits below the first.
+ */
+#watchlists-artifacts-pane {
+    overflow-y: auto;
+}

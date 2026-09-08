@@ -99,6 +99,7 @@ class FullAppDestinationContext:
             side_effect=_settings_without_splash,
         ):
             async with self.app.run_test(**kwargs) as pilot:
+                self.app._ensure_screen_owned_css("watchlists_collections")
                 await self.app.push_screen(self.context_screen)
                 await pilot.pause()
                 yield pilot

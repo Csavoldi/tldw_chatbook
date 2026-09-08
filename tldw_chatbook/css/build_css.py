@@ -356,9 +356,9 @@ _SPLIT_HEADER = """/* ========================================
  * GENERATED FILE - DO NOT EDIT DIRECTLY
  * ========================================
  * {owner}-owned rules split out of {module}
- * by build_css.py (TASK-25812/TASK-24459). Loaded via the owning screen's
- * CSS_PATH, so these bytes are parsed on first visit instead of before
- * first paint. Edit {module} and re-run build_css.py.
+ * by build_css.py (TASK-25812/TASK-24459). Loaded at the app or owning-screen
+ * stylesheet boundary; route-owned sheets are deferred until first visit.
+ * Edit {module} and re-run build_css.py.
  * ======================================== */
 
 """
@@ -423,6 +423,17 @@ SCREEN_OWNED_SPLITS: tuple[ScreenOwnedSplit, ...] = (
         module="features/_scheduling.tcss",
         sheets={"scheduling": "screen_feature_scheduling.tcss"},
         prefixes={"scheduling": ("scheduling", "schedules")},
+        pinned=frozenset(),
+    ),
+    # TASK-31932: Watchlists-only subjects leave the Console boot parse.
+    # Their compose consumers, including the older wl/wc/overview tokens,
+    # are confined to UI/Watchlists_Modules/ and
+    # UI/Screens/watchlists_collections_screen.py. Generic helper tokens
+    # and mixed selectors remain eager under the conservative classifier.
+    ScreenOwnedSplit(
+        module="features/_watchlists.tcss",
+        sheets={"watchlists": "screen_feature_watchlists.tcss"},
+        prefixes={"watchlists": ("watchlists", "wl", "wc", "overview")},
         pinned=frozenset(),
     ),
 )
