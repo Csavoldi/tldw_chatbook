@@ -14464,6 +14464,20 @@ WatchlistPickerDialog {
     text-style: bold underline;
 }
 
+/* These one-row Selects cannot carry an outline without obscuring their
+ * values. Paint focus on the opaque SelectCurrent instead, using a semantic
+ * lightened action surface whose matching background token keeps the value
+ * readable across dark, light, and high-contrast themes. */
+#items-status-select:focus > SelectCurrent,
+#watchlists-backend-select:focus > SelectCurrent {
+    background: $primary-lighten-1;
+}
+
+#items-status-select:focus > SelectCurrent Static,
+#watchlists-backend-select:focus > SelectCurrent Static {
+    color: $background;
+}
+
 /* Artifacts pane (spec #2 phase 1, task 4; re-tuned spec #2 phase 2a,
  * task 5): a briefing list over a briefing body, over a scripts list over
  * a script body, all inside the ITEMS region's fixed budget.

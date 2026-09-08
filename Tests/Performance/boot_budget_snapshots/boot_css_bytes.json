@@ -1,13 +1,13 @@
 {
   "_comment": "Boot-parsed CSS byte census. Written ONLY by scripts/update_boot_budget_snapshots.py (ADR-097).",
-  "total": 803075,
+  "total": 803658,
   "per_source": {
     "screen_agentic_console.tcss": 107010,
     "screen_css_scoped.tcss": 15216,
     "screen_css_self.tcss": 2769,
-    "tldw_cli_modular.tcss": 454042,
-    "widget_defaults_scoped.tcss": 109679,
-    "widget_defaults_self.tcss": 114359
+    "tldw_cli_modular.tcss": 454599,
+    "widget_defaults_scoped.tcss": 109654,
+    "widget_defaults_self.tcss": 114410
   },
   "per_segment": {
     "screen_agentic_console.tcss::(whole file)": 107010,
@@ -76,7 +76,7 @@
     "tldw_cli_modular.tcss::features/_splash.tcss": 2259,
     "tldw_cli_modular.tcss::features/_tab_dropdown.tcss": 2934,
     "tldw_cli_modular.tcss::features/_tools-settings.tcss": 6387,
-    "tldw_cli_modular.tcss::features/_watchlists.tcss": 45043,
+    "tldw_cli_modular.tcss::features/_watchlists.tcss": 45600,
     "tldw_cli_modular.tcss::features/_wizards.tcss": 32620,
     "tldw_cli_modular.tcss::features/_writing.tcss": 643,
     "tldw_cli_modular.tcss::features/config_search.tcss": 2290,
@@ -106,7 +106,7 @@
     "widget_defaults_scoped.tcss::ConsoleReactionPickerModal (Widgets/Console/console_reaction_picker_modal.py)": 2786,
     "widget_defaults_scoped.tcss::ConsoleReviewNotesModal (Widgets/Console/console_review_notes_modal.py)": 1701,
     "widget_defaults_scoped.tcss::ConsoleSaveMarkdownModal (Widgets/Console/console_save_markdown_modal.py)": 643,
-    "widget_defaults_scoped.tcss::ConsoleSelectionMenu (Widgets/Console/console_selection_menu.py)": 1419,
+    "widget_defaults_scoped.tcss::ConsoleSelectionMenu (Widgets/Console/console_selection_menu.py)": 1394,
     "widget_defaults_scoped.tcss::ConsoleSideChatModal (Widgets/Console/console_side_chat_modal.py)": 1379,
     "widget_defaults_scoped.tcss::ConsoleSummarizePreviewModal (Widgets/Console/console_summarize_preview_modal.py)": 483,
     "widget_defaults_scoped.tcss::ConsoleTerminalSessionModal (Widgets/Console/console_terminal_session_modal.py)": 604,
@@ -178,7 +178,7 @@
     "widget_defaults_self.tcss::ConsoleReactionPickerModal (Widgets/Console/console_reaction_picker_modal.py)": 558,
     "widget_defaults_self.tcss::ConsoleReviewNotesModal (Widgets/Console/console_review_notes_modal.py)": 189,
     "widget_defaults_self.tcss::ConsoleSaveMarkdownModal (Widgets/Console/console_save_markdown_modal.py)": 174,
-    "widget_defaults_self.tcss::ConsoleSelectionMenu (Widgets/Console/console_selection_menu.py)": 3205,
+    "widget_defaults_self.tcss::ConsoleSelectionMenu (Widgets/Console/console_selection_menu.py)": 3256,
     "widget_defaults_self.tcss::ConsoleSessionTabButton (Widgets/Console/console_session_surface.py)": 190,
     "widget_defaults_self.tcss::ConsoleSetupBackdrop (Widgets/Console/console_setup_modal.py)": 165,
     "widget_defaults_self.tcss::ConsoleSideChatModal (Widgets/Console/console_side_chat_modal.py)": 174,
