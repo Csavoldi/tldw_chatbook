@@ -742,8 +742,15 @@ def verify_provider_request_shadow(
     system_component_values: tuple[object, ...] = (),
     surface_boundary: object | None = None,
     omit_ephemeral_endpoint: bool = False,
+    provisional_verified_callback: Callable[[ProviderRequestProvenance, ProviderRequestShadowBundle, object], None] | None = None,
 ) -> ProviderRequestShadowBundle:
     """Sanitize, independently compare, bind, and project final provider values."""
+
+    def unavailable(reason, source, identity):
+        bundle = _unavailable(reason, source, identity)
+        if provisional_verified_callback is not None:
+            provisional_verified_callback(provenance, bundle, _SURFACE_VERIFICATION_ISSUER)
+        return bundle
 
     effective_preparation_identity = preparation_identity or new_opaque_id()
     credential_source = _credential_source(actual_kwargs)
@@ -757,7 +764,7 @@ def verify_provider_request_shadow(
             actual_kwargs,
             _SURFACE_VERIFICATION_ISSUER,
         ):
-            return _unavailable(
+            return unavailable(
                 TraceOmissionReason.ALIGNMENT_MISMATCH,
                 credential_source,
                 effective_preparation_identity,
@@ -766,7 +773,7 @@ def verify_provider_request_shadow(
         actual_values = _normalize_provider_continuations(actual_kwargs)
         expected_values = _normalize_provider_continuations(expected_kwargs)
     except Exception:  # noqa: BLE001 - checkpoint context may contain credentials
-        return _unavailable(
+        return unavailable(
             TraceOmissionReason.SANITIZER_FAILED,
             credential_source,
             effective_preparation_identity,
@@ -775,7 +782,7 @@ def verify_provider_request_shadow(
         actual_values,
         expected_values,
     ):
-        return _unavailable(
+        return unavailable(
             TraceOmissionReason.ALIGNMENT_MISMATCH,
             credential_source,
             effective_preparation_identity,
@@ -788,7 +795,7 @@ def verify_provider_request_shadow(
         surface_values = getattr(surface_boundary, "_provider_surface_values", None)
         verify_surface = getattr(surface_boundary, "_verify_surface_values", None)
         if not callable(surface_values) or not callable(verify_surface):
-            return _unavailable(
+            return unavailable(
                 TraceOmissionReason.ALIGNMENT_MISMATCH,
                 credential_source,
                 effective_preparation_identity,
@@ -810,7 +817,7 @@ def verify_provider_request_shadow(
         try:
             canonical_endpoint = canonical_provider_endpoint_identity(endpoint_identity)
         except ValueError:
-            return _unavailable(
+            return unavailable(
                 TraceOmissionReason.SANITIZER_FAILED,
                 credential_source,
                 effective_preparation_identity,
@@ -825,7 +832,7 @@ def verify_provider_request_shadow(
         or not isinstance(system_parts.value, (list, tuple))
         or (literal is not None and not literal.available)
     ):
-        return _unavailable(
+        return unavailable(
             TraceOmissionReason.SANITIZER_FAILED,
             credential_source,
             effective_preparation_identity,
@@ -836,7 +843,7 @@ def verify_provider_request_shadow(
         or not isinstance(actual.value, dict)
         or not _descriptors_align(actual.value, literal, provenance)
     ):
-        return _unavailable(
+        return unavailable(
             TraceOmissionReason.ALIGNMENT_MISMATCH,
             credential_source,
             effective_preparation_identity,
@@ -853,7 +860,7 @@ def verify_provider_request_shadow(
             prepared_surface.value,
             _SURFACE_VERIFICATION_ISSUER,
         ):
-            return _unavailable(
+            return unavailable(
                 TraceOmissionReason.ALIGNMENT_MISMATCH,
                 credential_source,
                 effective_preparation_identity,
@@ -865,7 +872,7 @@ def verify_provider_request_shadow(
         components_supplied=bool(system_component_values),
     )
     if provider_system_parts is None:
-        return _unavailable(
+        return unavailable(
             TraceOmissionReason.ALIGNMENT_MISMATCH,
             credential_source,
             effective_preparation_identity,
@@ -874,13 +881,13 @@ def verify_provider_request_shadow(
         raw_projected = project_handler_kwargs(dict(actual.value))
         projected = sanitizer.sanitize(raw_projected)
     except Exception:  # noqa: BLE001 - exception context may contain credentials
-        return _unavailable(
+        return unavailable(
             TraceOmissionReason.SANITIZER_FAILED,
             credential_source,
             effective_preparation_identity,
         )
     if not projected.available or not isinstance(projected.value, dict):
-        return _unavailable(
+        return unavailable(
             TraceOmissionReason.SANITIZER_FAILED,
             credential_source,
             effective_preparation_identity,
@@ -888,7 +895,7 @@ def verify_provider_request_shadow(
     component_redactions = _component_redactions(actual_values, sanitizer)
     handler_redactions = _component_redactions(raw_projected, sanitizer)
     if component_redactions is None or handler_redactions is None:
-        return _unavailable(
+        return unavailable(
             TraceOmissionReason.SANITIZER_FAILED,
             credential_source,
             effective_preparation_identity,
@@ -975,6 +982,8 @@ def verify_provider_request_shadow(
     bind_bundle = getattr(surface_boundary, "_bind_verified_bundle", None)
     if callable(bind_bundle):
         bind_bundle(provenance, bundle, _SURFACE_VERIFICATION_ISSUER)
+    if provisional_verified_callback is not None:
+        provisional_verified_callback(provenance, bundle, _SURFACE_VERIFICATION_ISSUER)
     return bundle
 
 

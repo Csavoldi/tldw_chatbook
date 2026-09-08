@@ -115,6 +115,46 @@ DEFAULT_DISCOVERY_OWNER = "general_chat"
 _CONVERSATION_IDENTITY_TEXT_MAX_BYTES = 256
 _SQLITE_POSITIVE_INTEGER_MAX = (1 << 63) - 1
 _UNSET = object()
+_VOICE_TRACE_IMPORT_GUARD_FUNCTION = "console_voice_trace_import_authorized"
+
+
+class _VoiceTraceImportAuthorization:
+    """Connection-local exact-call authority for promoted terminal inserts."""
+
+    def __init__(self, connection: sqlite3.Connection) -> None:
+        self._connection = connection
+        self._call_ids: frozenset[str] = frozenset()
+
+    @contextlib.contextmanager
+    def _authorize(self, call_ids: Sequence[str]):
+        """Authorize one bounded repository-owned import transaction."""
+
+        if not self._connection.in_transaction:
+            raise RuntimeError("caller_transaction_required")
+        if self._call_ids:
+            raise RuntimeError("voice_trace_import_authorization_already_active")
+        normalized = frozenset(call_ids)
+        if (
+            not normalized
+            or len(normalized) != len(tuple(call_ids))
+            or any(type(call_id) is not str or not call_id for call_id in normalized)
+        ):
+            raise ValueError("call_ids")
+        self._call_ids = normalized
+        try:
+            yield
+        finally:
+            self._call_ids = frozenset()
+
+    def _sqlite_authorized(self, call_id: object) -> int:
+        """Return one only for an exact call in the active transaction scope."""
+
+        return int(
+            type(call_id) is str
+            and call_id in self._call_ids
+            and self._connection.in_transaction
+        )
+
 _CANVAS_REVISION_DELETE_GUARD_FUNCTION = "canvas_revision_delete_authorized"
 _CANVAS_REVISION_PAYLOAD_VALIDATION_FUNCTION = "canvas_revision_payload_valid"
 _NOTES_ORGANIZATION_SYNC_ID_TABLES = (
@@ -660,7 +700,7 @@ class CharactersRAGDB:
         db_path_str (str): String representation of the database path for SQLite connection.
     """
 
-    _CURRENT_SCHEMA_VERSION = 70  # Independent local Buddy visual ownership.
+    _CURRENT_SCHEMA_VERSION = 71  # Voice provenance follows independent Buddy ownership.
     _SCHEMA_NAME = "rag_char_chat_schema"  # Used for the db_schema_version table
     _ALLOWED_CONVERSATION_STATES = ("in-progress", "resolved", "backlog", "non-viable")
     _DEFAULT_CONVERSATION_STATE = "in-progress"
@@ -3375,6 +3415,7 @@ UPDATE db_schema_version
                 conn = None
                 self._local.conn = None
                 self._local.semantic_mutation_authorization = None
+                self._local.voice_trace_import_authorization = None
                 self._local.canvas_revision_deletion_authorization = None
             if conn:
                 last_used = getattr(self._local, "conn_last_used", None)
@@ -3437,6 +3478,13 @@ UPDATE db_schema_version
                     self._local.semantic_mutation_authorization = (
                         register_semantic_mutation_guard(conn)
                     )
+                    voice_trace_authorization = _VoiceTraceImportAuthorization(conn)
+                    conn.create_function(
+                        _VOICE_TRACE_IMPORT_GUARD_FUNCTION,
+                        1,
+                        voice_trace_authorization._sqlite_authorized,
+                    )
+                    self._local.voice_trace_import_authorization = voice_trace_authorization
                     conn.create_function(
                         _CANVAS_REVISION_PAYLOAD_VALIDATION_FUNCTION,
                         3,
@@ -3566,6 +3614,19 @@ UPDATE db_schema_version
             authorization, _SemanticMutationAuthorization
         ):
             raise RuntimeError("semantic_mutation_connection_mismatch")
+        return authorization
+
+    def _voice_trace_import_authorization_for_repository(
+        self, connection: sqlite3.Connection
+    ) -> _VoiceTraceImportAuthorization:
+        """Return the private exact-call capability for this managed connection."""
+
+        current = self.get_connection()
+        authorization = getattr(self._local, "voice_trace_import_authorization", None)
+        if connection is not current or not isinstance(
+            authorization, _VoiceTraceImportAuthorization
+        ):
+            raise RuntimeError("voice_trace_import_connection_mismatch")
         return authorization
 
     def _trace_gc_deletion_authorization_for_collector(
@@ -3781,6 +3842,7 @@ UPDATE db_schema_version
                     self._local.conn = None
                 self._local.canvas_revision_deletion_authorization = None
                 self._local.semantic_mutation_authorization = None
+                self._local.voice_trace_import_authorization = None
 
     def backup_database(self, backup_file_path: str) -> bool:
         """
@@ -8083,6 +8145,45 @@ UPDATE db_schema_version
                 f"{type(exc).__name__}"
             ) from exc
 
+    def _migrate_from_v70_to_v71(self, conn: sqlite3.Connection) -> None:
+        """Add explicit provenance and guarded promoted terminal imports."""
+
+        self._require_migration_entry_version(conn, 70, "V70→V71")
+        migration_path = (
+            Path(__file__).parent
+            / "migrations"
+            / "chachanotes_v70_to_v71_voice_trace_provenance.sql"
+        )
+        try:
+            with self.transaction() as cursor:
+                self._execute_migration_statements(
+                    cursor,
+                    migration_path.read_text(encoding="utf-8"),
+                    "V70→V71",
+                )
+                version_cursor = cursor.execute(
+                    """
+                    UPDATE db_schema_version
+                       SET version = 71
+                     WHERE schema_name = ?
+                       AND version = 70
+                    """,
+                    (self._SCHEMA_NAME,),
+                )
+                if version_cursor.rowcount != 1:
+                    raise SchemaError(
+                        f"[{self._SCHEMA_NAME} V70→V71] Migration version update was not applied"
+                    )
+            if self._get_db_version(conn) != 71:
+                raise SchemaError(
+                    f"[{self._SCHEMA_NAME} V70→V71] Migration version check failed"
+                )
+        except (OSError, sqlite3.Error, CharactersRAGDBError, SchemaError) as exc:
+            raise SchemaError(
+                f"Migration from V70 to V71 failed for '{self._SCHEMA_NAME}': "
+                f"{type(exc).__name__}"
+            ) from exc
+
     def _migrate_from_v18_to_v19(self, conn: sqlite3.Connection):
         """
         Migrates the database schema from version 18 to version 19.
@@ -8305,6 +8406,7 @@ UPDATE db_schema_version
                     67: self._migrate_from_v67_to_v68,
                     68: self._migrate_from_v68_to_v69,
                     69: self._migrate_from_v69_to_v70,
+                    70: self._migrate_from_v70_to_v71,
                 }
 
                 if current_db_version == 0:
@@ -14565,6 +14667,7 @@ UPDATE db_schema_version
             "usage_json",
             "metadata_json",
             "thinking_blocks_json",
+            "assistant_generation_state",
         ]
 
         if continuation_clear_requested:
@@ -14635,7 +14738,7 @@ UPDATE db_schema_version
                 )
                 current = conn.execute(
                     "SELECT conversation_id, version, deleted, role, content, "
-                    f"{provider_column}, {thinking_column} "
+                    f"{provider_column}, {thinking_column}, assistant_generation_state "
                     "FROM messages WHERE id = ?",
                     (message_id,),
                 ).fetchone()
@@ -14661,6 +14764,42 @@ UPDATE db_schema_version
                     _require_thinking_generation_actions(
                         current["thinking_blocks_json"]
                     )
+
+                if "assistant_generation_state" in update_data:
+                    if current["role"] != "assistant":
+                        raise InputError(
+                            "Assistant generation state requires an assistant message."
+                        )
+                    from tldw_chatbook.Chat.assistant_generation_state import (
+                        normalize_assistant_generation_state,
+                    )
+
+                    checkpoint = None
+                    if current["provider_continuation_json"] is not None:
+                        checkpoint, _canonical = _validated_provider_continuation(
+                            current["provider_continuation_json"]
+                        )
+                    try:
+                        normalized_state = normalize_assistant_generation_state(
+                            role=current["role"],
+                            raw_state=update_data["assistant_generation_state"],
+                            has_valid_active_continuation=(
+                                checkpoint is not None
+                                and checkpoint.state == "active"
+                            ),
+                        )
+                    except ValueError:
+                        raise InputError(
+                            "Invalid assistant generation state."
+                        ) from None
+                    if (
+                        normalized_state is None
+                        or normalized_state.value
+                        != update_data["assistant_generation_state"]
+                    ):
+                        raise InputError(
+                            "Invalid assistant generation state transition."
+                        )
 
                 content_changed = (
                     "content" in update_data
