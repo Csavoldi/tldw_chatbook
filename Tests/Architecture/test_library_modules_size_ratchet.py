@@ -390,7 +390,9 @@ _BUDGETS: dict[str, int] = {
     # `Tests/UI/test_library_crit8_keyboard.py::
     # test_ctrl_n_into_new_note_also_focuses_blank_note` -- reverting the
     # guard reds it (focus lands on a notes-tree row, not Blank note).
-    "tldw_chatbook/UI/Library_Modules/library_notes_controller.py": 5283,
+    # TASK-31932: retain that guard, but pay down redundant documentation
+    # instead of accepting the upstream ceiling increase.
+    "tldw_chatbook/UI/Library_Modules/library_notes_controller.py": 5276,
     # See the dev-side-controller note above the character-repair row. Dev
     # landed this file at 195 lines; the +3 is this merge's own port -- the
     # `apply_navigation_context` gate read the flat `_library_prompts_
