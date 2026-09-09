@@ -1008,6 +1008,7 @@ class ConsoleMessageController:
         if (session.persisted_conversation_id or session.id) != conversation_id:
             return False
         active_ids = set(store.active_path_message_ids(session_id))
+        active_ids.update(store.canvas_active_path_message_ids(session_id))
         return all(
             getattr(getattr(revision, "origin", None), "message_id", None) in active_ids
             for revision in revisions
