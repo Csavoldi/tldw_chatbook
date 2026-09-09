@@ -9044,6 +9044,9 @@ class ChatScreen(BaseAppScreen):
         except (NoMatches, QueryError):
             return
 
+        # A queued refresh may run after this exact tray has been detached.
+        if not workspace_context.is_attached:
+            return
         state = self._workspace._build_console_workspace_context_state()
 
         if not self.query("#console-new-workspace-conversation"):

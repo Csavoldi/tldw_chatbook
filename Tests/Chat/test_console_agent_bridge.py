@@ -3856,14 +3856,14 @@ def test_resume_marker_messages_reproduces_live_markers_after_simulated_restart(
 
 
 @pytest.mark.parametrize(
-    "content",
+    ("content", "redacted"),
     [
-        "ERROR: harmless successful payload",
-        CONTROLLER_USER_DENIED_REFUSAL.format(name="collision_tool"),
+        ("ERROR: harmless successful payload", False),
+        (CONTROLLER_USER_DENIED_REFUSAL.format(name="collision_tool"), True),
     ],
 )
 def test_successful_tool_payload_collisions_stay_success_live_and_resumed(
-    tmp_path, content: str
+    tmp_path, content: str, redacted: bool
 ) -> None:
     scripts = [
         [_fence("collision_tool", {})],
@@ -3890,7 +3890,20 @@ def test_successful_tool_payload_collisions_stay_success_live_and_resumed(
     assert tool_step.tool_outcome == "success"
     assert persisted_step["tool_outcome"] == "success"
     assert live[-1].activity_presentation.status == "success"
-    assert _activity_marker_signature(resumed) == _activity_marker_signature(live)
+    if redacted:
+        assert live[-1].tool_output_full == content
+        # Durable privacy sanitization must not change the structured outcome.
+        assert _activity_marker_signature(resumed) == [
+            (
+                "⚙ collision_tool → tool call denied by the user: ***REDACTED***",
+                ConsoleActivityPresentation("tool", "collision_tool", "success"),
+                None,
+            )
+        ]
+    else:
+        assert live[-1].content == "⚙ collision_tool → ERROR: harmless successful payload"
+        assert live[-1].tool_output_full is None
+        assert _activity_marker_signature(resumed) == _activity_marker_signature(live)
 
 
 @pytest.mark.parametrize(
@@ -6593,7 +6606,21 @@ def test_run_reply_forwards_review_tool_calls_hook_to_agent_service(tmp_path):
     assert live[0].content == "I will request approval for this calculation."
     assert any("denied" in row.content.lower() for row in live)
     assert live[1].activity_presentation.status == "blocked"
-    assert _activity_marker_signature(resumed) == _activity_marker_signature(live)
+    assert live[1].tool_output_full == CONTROLLER_USER_DENIED_REFUSAL.format(
+        name="calculator"
+    )
+    assert _activity_marker_signature(resumed) == [
+        (
+            "I will request approval for this calculation.",
+            live[0].activity_presentation,
+            None,
+        ),
+        (
+            "⚙ calculator → tool call denied by the user: ***REDACTED***",
+            ConsoleActivityPresentation("tool", "calculator", "blocked"),
+            None,
+        ),
+    ]
 
 
 def test_run_reply_still_wires_stamp_scope_for_the_inline_kill_switch_path(

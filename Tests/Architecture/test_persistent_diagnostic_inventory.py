@@ -67,6 +67,7 @@ REVIEWED_METADATA_ONLY_DIAGNOSTICS = {
         "fleet survivor count failed for a session": (),
     },
     "tldw_chatbook/Chat/console_chat_store.py": {
+        "Workspace default Persona notice could not be shown": (),
         "Failed to reconcile restored Chat sync intent": (),
         "Failed to project Sync v2 continuation owner": (),
         "Failed to project Sync v2 Chat tombstone": (),
@@ -257,12 +258,6 @@ REVIEWED_METADATA_ONLY_DIAGNOSTICS = {
             "type(exc).__name__",
         ),
         "Console turn context: persona policy rules resolution failed": (
-            "type(exc).__name__",
-        ),
-        "Console session startup: workspace default persona resolution failed": (
-            "type(exc).__name__",
-        ),
-        "Console session startup: new-session settings selection failed": (
             "type(exc).__name__",
         ),
     },
