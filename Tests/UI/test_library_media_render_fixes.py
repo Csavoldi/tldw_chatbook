@@ -3539,7 +3539,12 @@ async def test_analysed_secondary_survives_the_36_cell_items_floor():
         screen._sync_library_media_reader_layout_from_shell()
         await _wait_for_condition(
             pilot,
-            lambda: _items_pane_width(screen) == 36,
+            # TASK-32060: the canvas fits the 32-cell content box inside
+            # the 36-cell Items pane instead of overflowing its padding.
+            lambda: (
+                screen._media_state.reader_layout.items_width == 36
+                and _items_pane_width(screen) == 32
+            ),
             message="The Items pane never reached its 36-cell floor.",
         )
 
