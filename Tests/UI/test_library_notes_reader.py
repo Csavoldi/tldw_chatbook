@@ -122,16 +122,18 @@ async def test_database_notes_capability_inventory_and_modes(
             screen.query_one("#library-row-browse-notes", Button).press()
             await _wait_for_selector(screen, pilot, "#library-notes-row-0")
 
-            # The navigator capability inventory remains on the incumbent controls.
+            # TASK-32128 keeps Sort on the flat fallback only; paged tree
+            # offsets follow repository title order, not a local sort chooser.
             for selector in (
                 "#library-notes-filter",
-                "#library-notes-sort",
                 "#library-notes-select-toggle",
                 "#library-notes-new",
                 "#library-notes-add-from-files",
                 "#library-notes-export",
             ):
                 assert screen.query_one(selector)
+            assert not screen.query("#library-notes-sort")
+            assert not screen.query("#library-notes-sort-choices")
             assert not screen.query("#library-notes-delete-selected")
             filter_input = screen.query_one("#library-notes-filter", Input)
             filter_input.value = "alpha"

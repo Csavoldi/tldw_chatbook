@@ -5820,9 +5820,9 @@ def test_library_production_width_matrix_normalizes_persisted_custom_widths(
         "neutral_items_width",
     ),
     (
-        (235, 231, (False, True), 56),
-        (170, 166, (False, True), 56),
-        (120, 116, (False, True), 56),
+        (235, 231, (False, True), 64),
+        (170, 166, (False, True), 64),
+        (120, 116, (False, True), 58),
         (100, 100, (False, False), 0),
         (80, 80, (False, False), 0),
         (60, 60, (False, False), 0),
@@ -6124,11 +6124,11 @@ async def test_library_resize_geometry_high_frequency_does_no_non_layout_work(
             screen._sync_library_notes_reader_layout_from_shell()
             retry.assert_not_called()
         phases = (
-            (170, (False, True, 0, 56, 100)),
-            (149, (False, True, 0, 56, 79)),
-            (153, (False, True, 0, 56, 83)),
-            (154, (False, True, 0, 56, 84)),
-            (120, (False, True, 0, 56, 50)),
+            (170, (False, True, 0, 64, 92)),
+            (149, (False, True, 0, 64, 71)),
+            (153, (False, True, 0, 64, 75)),
+            (154, (False, True, 0, 64, 76)),
+            (120, (False, True, 0, 58, 48)),
             # Notes reserves 10 grip cells, 50 Items cells, and 48 Work cells.
             (108, (False, True, 0, 50, 48)),
             (107, (False, False, 0, 0, 97)),
@@ -6142,9 +6142,9 @@ async def test_library_resize_geometry_high_frequency_does_no_non_layout_work(
             (108, (False, False, 0, 0, 98)),
             (111, (False, False, 0, 0, 101)),
             (112, (False, True, 0, 54, 48)),
-            (153, (False, True, 0, 56, 83)),
-            (154, (False, True, 0, 56, 84)),
-            (170, (False, True, 0, 56, 100)),
+            (153, (False, True, 0, 64, 75)),
+            (154, (False, True, 0, 64, 76)),
+            (170, (False, True, 0, 64, 92)),
         )
         with monkeypatch.context() as resize_patches:
             probes = _task6_install_resize_probes(
@@ -6809,13 +6809,13 @@ async def test_rail_counts_never_clip_and_titles_shrink_first_at_100x30():
             for banned in ("Conversa...", "Flash...", "Collect..."):
                 assert banned not in first_line, (row.id, first_line)
 
-        # ...and the count survives on the longest-titled row. The bounded
-        # fractional rail deliberately uses the semantic short title at this
-        # terminal width rather than widening the entire sidebar.
+        # ...and the count survives on the longest-titled row. The widened
+        # default rail fits its full title; semantic short titles are only
+        # used when the full title and count cannot fit.
         conv = screen.query_one("#library-row-browse-conversations", Button)
         conv_line = conv.label.plain.split("\n")[0]
         assert conv_line.endswith("(2)"), f"count clipped: {conv_line!r}"
-        assert "Chats" in conv_line, f"semantic short title missing: {conv_line!r}"
+        assert conv_line.strip() == "Conversations (2)"
         assert "..." not in conv_line and "…" not in conv_line, (
             f"title fits outright -- no ellipsis allowed: {conv_line!r}"
         )
@@ -19126,7 +19126,8 @@ async def test_library_shell_notes_row_opens_notes_list_canvas():
         header = str(screen.query_one("#library-notes-header").renderable)
         assert header == "Notes (2)"
         assert screen.query_one("#library-notes-filter")
-        assert screen.query_one("#library-notes-sort")
+        assert screen._build_library_notes_tree_projection() is not None
+        assert not screen.query("#library-notes-sort")
 
 
 @pytest.mark.asyncio
@@ -19140,8 +19141,8 @@ async def test_library_shell_notes_list_actions_use_two_named_horizontal_rows():
     nested in `#library-notes-action-rows`; the merged geometry is pinned
     in Tests/UI/test_library_notes_wave_list.py.
 
-    NOTE: failing on dev before this branch as well -- it waits for
-    `#library-notes-row-0`, and Database Notes composes a folder tree.
+    The title-paged tree owns this navigator, so Sort is absent while
+    every remaining action retains its named toolbar and bounds.
     """
     app = _build_test_app()
     _seed_conversations(app, _two_conversations(), notes=_two_notes())
@@ -19160,9 +19161,9 @@ async def test_library_shell_notes_list_actions_use_two_named_horizontal_rows():
 
         browse_selectors = (
             "#library-notes-new",
-            "#library-notes-sort",
             "#library-notes-select-toggle",
         )
+        assert not screen.query("#library-notes-sort")
         transfer_selectors = (
             "#library-notes-add-from-files",
             "#library-notes-export",
@@ -20629,12 +20630,12 @@ async def test_library_shell_note_save_then_back_refreshes_tree_title():
         screen = _active_library_screen(host)
         await _wait_for_library_shell(screen, pilot)
 
-        # Open the OLDER note (row 1, "Reading list") so the Newest-order
-        # flip to row 0 after the edit is observable.
+        # Open "Reading list" in the title-ordered tree. Its label also
+        # carries age metadata, which must not become part of the title.
         screen.query_one("#library-row-browse-notes").press()
         await _wait_for_selector(screen, pilot, "#library-notes-row-1")
         row = screen.query_one("#library-notes-row-1", Button)
-        assert str(row.label).splitlines()[0].lstrip() == "Reading list"
+        assert str(row.label).split(" · ", 1)[0].lstrip() == "Reading list"
         row.press()
         await _wait_for_selector(screen, pilot, "#library-note-title")
         await pilot.pause()
@@ -20656,7 +20657,7 @@ async def test_library_shell_note_save_then_back_refreshes_tree_title():
         await _wait_for_selector(screen, pilot, "#library-notes-row-0")
 
         edited_label = str(screen.query_one("#library-notes-row-1", Button).label)
-        assert edited_label.splitlines()[0].lstrip() == "Reading list (edited)"
+        assert edited_label.split(" · ", 1)[0].lstrip() == "Reading list (edited)"
 
         # Back re-kicked the authoritative snapshot refetch.
         for _ in range(150):
@@ -20670,7 +20671,7 @@ async def test_library_shell_note_save_then_back_refreshes_tree_title():
         await pilot.pause()
         await pilot.pause()
         edited_label = str(screen.query_one("#library-notes-row-1", Button).label)
-        assert edited_label.splitlines()[0].lstrip() == "Reading list (edited)"
+        assert edited_label.split(" · ", 1)[0].lstrip() == "Reading list (edited)"
 
 
 @pytest.mark.asyncio
@@ -24509,12 +24510,12 @@ async def _enter_task8_navigator_state(screen, pilot, state: str) -> None:
             {
                 "#library-notes-header": 1,
                 "#library-notes-filter-row": 1,
-                "#library-notes-sort-choices": 1,
+                "#library-notes-browse-actions": 1,
                 "#library-notes-transfer-actions": 1,
                 "#library-notes-status-row": 1,
                 "#library-notes-list": 6,
             },
-            "#library-notes-sort-newest",
+            "#library-notes-filter",
         ),
         (
             "selection",
@@ -24565,7 +24566,15 @@ async def test_library_note_60x20_navigator_state_allocation(
         if state == "selection":
             assert screen.query_one("#library-notes-status").display is False
         if state == "sort-choice":
-            assert screen.query_one("#library-notes-browse-actions").display is False
+            # TASK-32128: a tree taking over a stale flat chooser restores
+            # normal browse geometry and focus, not an invisible Sort mode.
+            assert screen._build_library_notes_tree_projection() is not None
+            assert screen._notes_state.sort_choices_visible is False
+            assert not screen.query("#library-notes-sort")
+            assert not screen.query("#library-notes-sort-choices")
+            assert ("enter", "choose sort") not in (
+                screen._library_footer_shortcuts_for_current_state()
+            )
 
 
 @pytest.mark.asyncio
@@ -32317,7 +32326,11 @@ async def test_library_note_editor_back_restores_exact_wide_browse_context(
     ]
     app = _build_test_app()
     _seed_conversations(app, _two_conversations(), notes=notes)
-    host = LibraryProductionCSSHarness(app)
+    screen = LibraryScreen(app)
+    # TASK-32128: restore the real persisted preference; the title-paged
+    # tree no longer offers the flat list's Sort control to set it.
+    screen.restore_state({"library_notes_sort": "title"})
+    host = LibraryProductionCSSHarness(app, screen=screen)
 
     async with host.run_test(size=(170, 24)) as pilot:
         screen = _active_library_screen(host)
@@ -32326,14 +32339,14 @@ async def test_library_note_editor_back_restores_exact_wide_browse_context(
         screen.query_one("#library-row-browse-notes").press()
         await _wait_for_selector(screen, pilot, "#library-notes-filter")
 
-        screen.query_one("#library-notes-sort", Button).press()
-        await _wait_for_selector(screen, pilot, "#library-notes-sort-title")
-        screen.query_one("#library-notes-sort-title", Button).press()
-        await _wait_for_condition(
-            pilot,
-            lambda: screen._notes_state.sort == "title",
-            message="Notes title scope did not settle.",
-        )
+        assert screen._notes_state.sort == "title"
+        assert not screen.query("#library-notes-sort")
+        await _wait_for_selector(screen, pilot, "#library-notes-row-19")
+        projection = screen._build_library_notes_tree_projection()
+        assert projection is not None
+        assert [row.note_id for row in projection.rows if row.kind == "note"] == [
+            f"n-{index:02d}" for index in range(20)
+        ]
         await pilot.pause()
         notes_filter = screen.query_one("#library-notes-filter", Input)
         unfiltered_list = screen.query_one("#library-notes-list")
@@ -32376,6 +32389,9 @@ async def test_library_note_editor_back_restores_exact_wide_browse_context(
         )
         assert len(screen._notes_state.filter_records) == 20
         assert len(screen.query(".library-notes-row")) == 20
+        assert [row.note_id for row in screen.query(".library-notes-row")] == [
+            f"n-{index:02d}" for index in range(20)
+        ]
 
         rail = screen.query_one("#library-rail")
         notes_list = screen.query_one("#library-notes-list")
@@ -34558,6 +34574,16 @@ async def test_library_note_keyboard_capability_matrix(
 
         if capability == "filter_sort":
             await _task10_open_notes_navigator(screen, pilot)
+            # TASK-32128: the tree owns title order. Keep real keyboard
+            # filtering and pin Sort's absence instead of invoking a flat
+            # control that is intentionally not available on this surface.
+            await _wait_for_selector(screen, pilot, "#library-notes-row-1")
+            projection = screen._build_library_notes_tree_projection()
+            assert projection is not None
+            assert [row.note_id for row in projection.rows if row.kind == "note"] == [
+                "n-1", "n-2"
+            ]
+            assert screen._notes_state.sort == "newest"
             filter_input = await _task10_focus_with_keyboard(
                 screen, pilot, "#library-notes-filter"
             )
@@ -34568,11 +34594,20 @@ async def test_library_note_keyboard_capability_matrix(
                 message="Keyboard filter submit never reached search_notes.",
             )
             assert filter_input.value == "retro"
-            await _task10_activate_with_keyboard(screen, pilot, "#library-notes-sort")
-            await _task10_activate_with_keyboard(
-                screen, pilot, "#library-notes-sort-oldest"
+            await _wait_for_condition(
+                pilot,
+                lambda: screen._notes_state.filter_records is not None,
+                message="Keyboard filter result did not settle.",
             )
-            assert screen._notes_state.sort == "oldest"
+            projection = screen._build_library_notes_tree_projection()
+            assert projection is not None
+            assert [row.note_id for row in projection.rows if row.kind == "note"] == [
+                "n-1"
+            ]
+            assert screen._notes_state.sort == "newest"
+            assert screen._notes_state.sort_choices_visible is False
+            assert not screen.query("#library-notes-sort")
+            assert not screen.query("#library-notes-sort-choices")
             return
 
         if capability == "create_discard":
