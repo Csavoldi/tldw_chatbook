@@ -2806,7 +2806,8 @@ async def test_library_starter_production_geometry_and_focus_order(size) -> None
             # critique #8 row 3 reported (one Tab out of the New-note canvas
             # landed on Home). Tab now wraps inside ``#screen-content``; the
             # nav bar is reached with its own keys (Ctrl+digit / F-keys).
-            assert screen.focused.id == "library-open-chunking-lab"
+            # TASK-32064 moved Chunking Lab into Details, hidden in Starter.
+            assert screen.focused is first_focus
             nav_bar = screen.query_one("MainNavigationBar")
             assert nav_bar not in screen.focused.ancestors
             assert len(screen.query("#library-rail-explore-all")) == 1
@@ -6814,7 +6815,8 @@ async def test_rail_counts_never_clip_and_titles_shrink_first_at_100x30():
 
 
 @pytest.mark.asyncio
-async def test_search_placeholder_fits_and_input_reads_as_a_field_at_100x30():
+@pytest.mark.parametrize("size", ((100, 30), (170, 48)))
+async def test_search_placeholder_fits_and_input_reads_as_a_field_at_100x30(size):
     """F-015/F-016: the full 'Search Library…' placeholder fits the box at
     100 cols, and the box carries the app's field treatment (the
     $ds-grid-line frame its sibling filters use) instead of a borderless
@@ -6823,7 +6825,7 @@ async def test_search_placeholder_fits_and_input_reads_as_a_field_at_100x30():
     _seed_conversations(app, _two_conversations())
     host = LibraryHarness(app)
 
-    async with host.run_test(size=(100, 30)) as pilot:
+    async with host.run_test(size=size) as pilot:
         screen = _active_library_screen(host)
         await _wait_for_library_shell(screen, pilot)
 
@@ -6837,6 +6839,33 @@ async def test_search_placeholder_fits_and_input_reads_as_a_field_at_100x30():
         # $ds-grid-line ($surface-lighten-1), the app's field frame token --
         # not the near-invisible Textual default border (#191919).
         assert top_color.hex.lower() == "#2d2d2d"
+        clear = screen.query_one("#library-search-clear", Button)
+        assert clear in screen._compositor.visible_widgets
+        assert clear.content_region.width >= cell_len(str(clear.label))
+        assert search.region.right == clear.region.x
+        assert screen.query_one("#library-rail-search-row").content_region.contains_region(
+            clear.region
+        )
+        painted = "\n".join(
+            "".join(segment.text for segment in strip)
+            for strip in screen._compositor.render_strips()
+        )
+        assert search.placeholder in painted
+        rest_background = search.styles.background
+        rest_width = search.content_region.width
+        search.focus()
+        await pilot.pause()
+        assert search.styles.border.top[1] != top_color
+        assert search.styles.background != rest_background
+        assert search.styles.border.right[0] == ""
+        assert search.content_region.width == rest_width
+        search.value = "retro"
+        await pilot.press("tab")
+        assert clear.has_focus
+        await pilot.press("enter")
+        await pilot.pause()
+        assert search.value == ""
+        assert search.has_focus
 
 
 @pytest.mark.asyncio
@@ -24200,8 +24229,8 @@ def _assert_task8_compact_chrome(screen: LibraryScreen) -> None:
     TASK-3317 resolves the remaining route fork: every Database Notes route,
     including Create, owns the one-row source-authority strip. Compact Notes
     therefore has one terminal-level allocation: 3 + 1 + 1 + 14 + 1.
-    TASK-31645 subsequently adds the one-row Chunking Lab action strip:
-    the current allocation is 3 + 1 + 1 + 1 + 13 + 1.
+    TASK-32064 moved the later Chunking Lab strip into Details, restoring
+    the allocation to 3 + 1 + 1 + 14 + 1 without changing fixed Notes rows.
     """
     navigation = screen.query_one("MainNavigationBar")
     header = screen.query_one("#library-header-line")
@@ -24213,9 +24242,8 @@ def _assert_task8_compact_chrome(screen: LibraryScreen) -> None:
     strip = screen.query_one("#library-notes-source-strip")
     strip_height = strip.region.height
     assert strip_height == 1
-    chunking_tools = screen.query_one("#library-chunking-tools")
-    assert chunking_tools.region.height == 1
-    shell_height = 13
+    assert not screen.query("#library-chunking-tools")
+    shell_height = 14
 
     assert screen.region.height == 20
     assert navigation.region.height == 3
@@ -24234,13 +24262,16 @@ def _assert_task8_compact_chrome(screen: LibraryScreen) -> None:
     assert notes.content_region.contains_region(authority.region)
     authority_text = getattr(authority.renderable, "plain", str(authority.renderable))
     assert "Library notes · Library database" in authority_text
-    assert "Next:" in authority_text
+    if notes.mode == "loading" and notes.load_state != "failed":
+        assert "Loading note…" in authority_text
+        assert "Next:" not in authority_text
+    else:
+        assert "Next:" in authority_text
     assert footer.region.height == 1
     assert (
         navigation.region.height
         + header.region.height
         + strip_height
-        + chunking_tools.region.height
         + shell.region.height
         + footer.region.height
         == 20
@@ -24341,7 +24372,7 @@ async def _enter_task8_navigator_state(screen, pilot, state: str) -> None:
                 "#library-notes-browse-actions": 1,
                 "#library-notes-transfer-actions": 1,
                 "#library-notes-status-row": 1,
-                "#library-notes-list": 5,
+                "#library-notes-list": 6,
             },
             "#library-notes-filter",
         ),
@@ -24353,7 +24384,7 @@ async def _enter_task8_navigator_state(screen, pilot, state: str) -> None:
                 "#library-notes-browse-actions": 1,
                 "#library-notes-transfer-actions": 1,
                 "#library-notes-status-row": 1,
-                "#library-notes-empty": 5,
+                "#library-notes-empty": 6,
             },
             "#library-notes-filter-clear",
         ),
@@ -24365,7 +24396,7 @@ async def _enter_task8_navigator_state(screen, pilot, state: str) -> None:
                 "#library-notes-sort-choices": 1,
                 "#library-notes-transfer-actions": 1,
                 "#library-notes-status-row": 1,
-                "#library-notes-list": 5,
+                "#library-notes-list": 6,
             },
             "#library-notes-sort-newest",
         ),
@@ -24376,7 +24407,7 @@ async def _enter_task8_navigator_state(screen, pilot, state: str) -> None:
                 "#library-notes-filter-row": 1,
                 "#library-notes-selection-actions": 1,
                 "#library-notes-selection-status": 1,
-                "#library-notes-list": 7,
+                "#library-notes-list": 8,
             },
             "#library-notes-select-toggle",
         ),
@@ -24438,7 +24469,7 @@ async def test_library_note_60x20_temporary_region_allocation() -> None:
         focus = "#library-notes-create-blank"
 
         # TASK-3317: Create retains the Notes source-authority chrome.
-        canvas_height = 13
+        canvas_height = 14
         _assert_task8_compact_chrome(screen)
         owner = screen.query_one("#library-note-work-pane")
         header = screen.query_one(heading)
@@ -24583,16 +24614,15 @@ async def test_library_note_60x20_loading_allocation_keeps_back_visible() -> Non
                 message="Detail service never entered its gated load.",
             )
             await _wait_for_selector(screen, pilot, "#library-note-load-state")
-            # Source authority and TASK-31645's Chunking Lab strip remain
-            # visible while loading; only the flexible viewport gives up
-            # the extra row. See _assert_task8_compact_chrome.
+            # Source authority remains visible while loading; TASK-32064
+            # returns the former Lab strip's row to the flexible viewport.
             _assert_task8_compact_chrome(screen)
             assert screen.query_one("#library-note-load-heading").region.height == 1
             assert screen.query_one("#library-note-loading").region.height == 1
             load_state = screen.query_one("#library-note-load-state")
-            assert load_state.region.height == 11
+            assert load_state.region.height == 12
             assert (
-                screen.query_one("#library-note-loading-viewport").region.height == 9
+                screen.query_one("#library-note-loading-viewport").region.height == 10
             )
             assert screen.query_one(
                 "#library-note-work-pane"
@@ -24635,7 +24665,7 @@ async def test_library_note_60x20_untouched_new_allocation_keeps_discard_visible
                 "#library-note-heading": 1,
                 "#library-note-title-row": 1,
                 "#library-note-body-label": 1,
-                "#library-note-body": 5,
+                "#library-note-body": 6,
                 "#library-note-status": 1,
                 "#library-note-primary-actions": 2,
                 "#library-note-mode-controls": 1,
@@ -24732,7 +24762,7 @@ async def _enter_task8_editor_state(screen, pilot, state: str) -> None:
                 "#library-note-heading": 1,
                 "#library-note-title-row": 1,
                 "#library-note-body-label": 1,
-                "#library-note-body": 5,
+                "#library-note-body": 6,
                 "#library-note-status": 1,
                 "#library-note-primary-actions": 2,
                 "#library-note-mode-controls": 1,
@@ -24746,7 +24776,7 @@ async def _enter_task8_editor_state(screen, pilot, state: str) -> None:
                 "#library-note-heading": 1,
                 "#library-note-title-row": 1,
                 "#library-note-body-label": 1,
-                "#library-note-body": 4,
+                "#library-note-body": 5,
                 "#library-note-status": 2,
                 "#library-note-primary-actions": 2,
                 "#library-note-mode-controls": 1,
@@ -24760,7 +24790,7 @@ async def _enter_task8_editor_state(screen, pilot, state: str) -> None:
                 "#library-note-heading": 1,
                 "#library-note-title-row": 1,
                 "#library-note-body-label": 1,
-                "#library-note-body": 2,
+                "#library-note-body": 3,
                 "#library-note-status": 2,
                 "#library-note-conflict-copy": 2,
                 "#library-note-conflict-actions": 1,
@@ -24773,7 +24803,7 @@ async def _enter_task8_editor_state(screen, pilot, state: str) -> None:
                 "#library-note-heading": 1,
                 "#library-note-title-row": 1,
                 "#library-note-body-label": 1,
-                "#library-note-body": 3,
+                "#library-note-body": 4,
                 "#library-note-status": 1,
                 "#library-note-delete-confirm-copy": 1,
                 "#library-note-delete-actions": 1,
@@ -24784,7 +24814,7 @@ async def _enter_task8_editor_state(screen, pilot, state: str) -> None:
             "preview",
             {
                 "#library-note-heading": 1,
-                "#library-note-preview-region": 7,
+                "#library-note-preview-region": 8,
                 "#library-note-status": 1,
                 "#library-note-primary-actions": 2,
                 "#library-note-mode-controls": 1,
@@ -24797,7 +24827,7 @@ async def _enter_task8_editor_state(screen, pilot, state: str) -> None:
             {
                 "#library-note-heading": 1,
                 "#library-note-context-status": 1,
-                "#library-note-context-region": 6,
+                "#library-note-context-region": 7,
                 "#library-note-primary-actions": 2,
                 "#library-note-mode-controls": 1,
                 "#library-note-task-actions": 1,
@@ -32097,7 +32127,55 @@ async def test_library_note_wide_browse_collapses_library_when_work_begins() -> 
 
 
 @pytest.mark.asyncio
-async def test_library_note_editor_back_restores_exact_wide_browse_context() -> None:
+@pytest.mark.parametrize("claimed", (None, False, True))
+async def test_late_notes_sync_preserves_newer_row_focus_and_scroll(
+    claimed: bool | None,
+) -> None:
+    """Automatic restoration recovers a grip but cannot undo a newer row claim.
+
+    Args:
+        claimed: True for a newer row, False for a grip, None for missing focus.
+    """
+    app = _build_test_app()
+    notes = [dict(_two_notes()[0], id=f"claim-{i}", title=f"Claim {i:02d}") for i in range(32)]
+    _seed_conversations(app, _two_conversations(), notes=notes)
+    host = LibraryProductionCSSHarness(app)
+    async with host.run_test(size=(170, 24)) as pilot:
+        screen = _active_library_screen(host)
+        await _wait_for_library_shell(screen, pilot)
+        screen.query_one("#library-row-browse-notes", Button).press()
+        await _wait_for_selector(screen, pilot, "#library-notes-row-0")
+        notes_filter = screen.query_one("#library-notes-filter", Input)
+        notes_filter.focus()
+        await pilot.pause()
+        stale = screen._capture_library_notes_focus_identity()
+        notes_list = screen.query_one("#library-notes-list")
+        target = list(screen.query(".library-notes-row"))[18]
+        if claimed:
+            notes_list.scroll_to(y=7, animate=False, force=True, immediate=True)
+            screen.set_focus(target, scroll_visible=False)
+            await pilot.pause()
+            assert notes_list.scroll_y == 7
+        elif claimed is False:
+            screen.query_one("#library-notes-items-grip", Button).focus()
+            await pilot.pause()
+        else:
+            screen.set_focus(None)
+
+        screen._restore_library_notes_after_targeted_sync(stale)
+        await pilot.pause()
+        if claimed:
+            assert screen.focused is target
+            assert notes_list.scroll_y == 7
+        else:
+            assert screen.focused is notes_filter
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("delayed_filter_projection", (False, True))
+async def test_library_note_editor_back_restores_exact_wide_browse_context(
+    monkeypatch, delayed_filter_projection: bool,
+) -> None:
     """Editor Back returns to the same scope, row, and two scroll owners."""
     notes = [
         {
@@ -32131,15 +32209,36 @@ async def test_library_note_editor_back_restores_exact_wide_browse_context() -> 
         )
         await pilot.pause()
         notes_filter = screen.query_one("#library-notes-filter", Input)
+        unfiltered_list = screen.query_one("#library-notes-list")
         notes_filter.value = "scope"
         notes_filter.focus()
         await pilot.pause()
+        if delayed_filter_projection:
+            sync_canvas = library_screen_module._sync_library_canvas
+
+            def defer_filter_projection(owner, kind, **kwargs):
+                """Model filter results arriving before their mounted projection."""
+                then = kwargs.get("then")
+                if kind == "notes" and getattr(then, "__name__", "") == (
+                    "_focus_library_notes_filter_input"
+                ):
+                    owner.set_timer(0.5, lambda: sync_canvas(owner, kind, **kwargs))
+                    return True
+                return sync_canvas(owner, kind, **kwargs)
+
+            monkeypatch.setattr(
+                library_screen_module, "_sync_library_canvas", defer_filter_projection
+            )
         await pilot.press("enter")
         await _wait_for_condition(
             pilot,
             lambda: (
                 screen._notes_state.filter == "scope"
                 and screen._notes_state.filter_records is not None
+                and bool(screen.query("#library-notes-list"))
+                and screen.query_one("#library-notes-list") is not unfiltered_list
+                and len(screen.query(".library-notes-row")) == 20
+                and screen.query_one("#library-notes-filter", Input).has_focus
             ),
             message=lambda: (
                 "Filtered Notes scope did not settle: "
@@ -32149,7 +32248,7 @@ async def test_library_note_editor_back_restores_exact_wide_browse_context() -> 
             ),
         )
         assert len(screen._notes_state.filter_records) == 20
-        assert len(screen.query(".library-notes-row")) >= 20
+        assert len(screen.query(".library-notes-row")) == 20
 
         rail = screen.query_one("#library-rail")
         notes_list = screen.query_one("#library-notes-list")
@@ -32468,8 +32567,8 @@ async def test_library_note_same_side_resize_does_no_presentation_work(
                 "#library-notes-status-row",
             ),
             (1, 1, 1, 1, 1),
-            9,
-            15,
+            10,
+            16,
         ),
         (
             "editor",
@@ -32482,8 +32581,8 @@ async def test_library_note_same_side_resize_does_no_presentation_work(
                 "#library-note-primary-actions",
             ),
             (1, 1, 1, 1, 2),
-            9,
-            15,
+            10,
+            16,
         ),
         (
             "context",
@@ -32495,8 +32594,8 @@ async def test_library_note_same_side_resize_does_no_presentation_work(
                 "#library-note-context-status",
             ),
             (1, 1, 2, 1),
-            10,
-            16,
+            11,
+            17,
         ),
     ),
 )
@@ -34887,12 +34986,12 @@ async def test_library_note_fifty_same_side_resize_sequences_do_zero_notes_work(
         for name, wrapped in seams.items():
             assert wrapped.call_count == 0, name
         if expected_compact:
-            # TASK-19000 authority and TASK-31645's Lab strip stay fixed.
-            assert screen.query_one("#library-note-body").region.height == 9
+            # TASK-19000 authority stays fixed; TASK-32064 returned one row.
+            assert screen.query_one("#library-note-body").region.height == 10
             await pilot.resize_terminal(100, 30)
             await pilot.pause()
             assert screen.query_one("#library-note-body") is body
-            assert body.region.height == 15
+            assert body.region.height == 16
 
 
 @pytest.mark.asyncio

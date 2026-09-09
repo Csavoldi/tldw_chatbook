@@ -42,6 +42,7 @@ from tldw_chatbook.Widgets.Library.library_notes_canvas import (
     LibraryNotePresentationState,
     LibraryNotesCanvas,
 )
+from tldw_chatbook.Widgets.Library.library_note_work_pane import LibraryNoteWorkPane
 
 pytestmark = pytest.mark.asyncio
 
@@ -231,6 +232,33 @@ async def test_authority_row_is_first_plain_child_in_every_notes_mode(
         assert "Next:" in text
 
 
+@pytest.mark.parametrize("mode", ("create", "loading", "editor"))
+async def test_compact_work_authority_survives_responsive_round_trip(
+    widget_pilot, mode: str,  # noqa: F811
+) -> None:
+    """Keep storage authority in compact Work without duplicating wide Items.
+
+    Args:
+        widget_pilot: Real mounted-widget test context.
+        mode: Work subview whose inherited authority node stays mounted.
+    """
+    async with await widget_pilot(
+        LibraryNoteWorkPane, mode=mode, compact=True,
+    ) as pilot:
+        canvas = pilot.app.query_one(LibraryNoteWorkPane)
+        authority = canvas.query_one("#library-note-work-authority", Static)
+        for compact in (True, False, True):
+            canvas.apply_compact_presentation(compact)
+            await pilot.pause()
+            assert canvas.query_one("#library-note-work-authority") is authority
+            text = str(authority.renderable)
+            assert text.startswith("Library notes · Library database") is compact
+            assert text
+            if mode == "loading":
+                assert "Loading note…" in text
+                assert "Next:" not in text
+
+
 async def test_completed_import_receipt_has_focusable_back_action_at_60_columns():
     snapshot = replace(
         project_library_note_import_snapshot(initial_note_import_snapshot()),
@@ -383,7 +411,7 @@ async def test_list_authority_running_without_status_uses_updating_fallback(
 
         assert "Updating notes…" in text
         assert "Ready" not in text
-        assert "Next: Wait for the running notes operation to finish." in text
+        assert "Next:" not in text
 
 
 async def test_editor_authority_tracks_post_mount_save_state(widget_pilot):  # noqa: F811
@@ -401,7 +429,7 @@ async def test_editor_authority_tracks_post_mount_save_state(widget_pilot):  # n
         assert canvas.query_one("#library-notes-authority", Static) is authority
         text = getattr(authority.renderable, "plain", str(authority.renderable))
         assert "Saving note…" in text
-        assert "Next: Wait for saving to finish." in text
+        assert "Next:" not in text
 
         canvas.apply_session_state(_editor_state(status="Save failed: database busy"))
         text = getattr(authority.renderable, "plain", str(authority.renderable))
@@ -432,7 +460,7 @@ async def test_editor_authority_tracks_transfer_through_context_navigation(
         text = getattr(authority.renderable, "plain", str(authority.renderable))
         assert "Saved" in text
         assert "Exporting Markdown…" in text
-        assert "Next: Wait for export to finish." in text
+        assert "Next:" not in text
 
         canvas.apply_session_state(
             _editor_state(
