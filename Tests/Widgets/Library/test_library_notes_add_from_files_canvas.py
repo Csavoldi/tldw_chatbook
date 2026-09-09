@@ -22,6 +22,7 @@ from tldw_chatbook.Notes.notes_sync_conflicts import (
     ConflictComparison,
     NotesSyncConflictChoice,
 )
+from tldw_chatbook.UI.Screens.library_screen import LibraryScreen
 from tldw_chatbook.Widgets.Library.library_notes_add_from_files_canvas import (
     LibraryNotesAddFromFilesCanvas,
 )
@@ -31,7 +32,8 @@ pytestmark = pytest.mark.asyncio
 
 
 class _Host(App[None]):
-    CSS_PATH = TldwCli.CSS_PATH
+    # Library-owned rules load on screen entry, outside the boot stylesheet set.
+    CSS_PATH = [*TldwCli.CSS_PATH, *LibraryScreen.CSS_PATH]
 
     def __init__(self, snapshot) -> None:
         super().__init__()
