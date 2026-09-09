@@ -65,12 +65,15 @@ def _direct_child_ids(widget) -> list[str | None]:
     return [child.id for child in widget.children]
 
 
-_REAL_CSS_PATH = str(
+_REAL_CSS_ROOT = (
     Path(__file__).resolve().parents[2]
     / "tldw_chatbook"
     / "css"
-    / "tldw_cli_modular.tcss"
 )
+_REAL_CSS_PATH = [
+    str(_REAL_CSS_ROOT / "tldw_cli_modular.tcss"),
+    str(_REAL_CSS_ROOT / "screen_feature_watchlists.tcss"),
+]
 
 
 class _BoundaryGeometryApp(App[None]):
