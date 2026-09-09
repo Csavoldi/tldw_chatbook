@@ -2718,7 +2718,7 @@
     },
     {
       "call_count": 9,
-      "diagnostic_digest": "ac515f10c9f9681a22ed",
+      "diagnostic_digest": "5f39d074855c4230747d",
       "owner": "TASK-494",
       "path": "tldw_chatbook/UI/Library_Modules/canvas_sync.py",
       "reason": "remaining Chatbook production diagnostic owner"
@@ -11549,11 +11549,11 @@
   "schema_version": 3,
   "scope": "tldw_chatbook/**/*.py",
   "summary": {
-    "owner_files": 601,
+    "owner_files": 602,
     "path_privacy_candidate_calls": 710,
     "persistent_sink_files": 12,
     "task_31551_calls": 55,
     "task_492_calls": 1351,
-    "task_494_calls": 7658
+    "task_494_calls": 7660
   }
 }

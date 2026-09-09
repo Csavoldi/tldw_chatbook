@@ -3117,7 +3117,7 @@ async def test_media_rows_paint_analysed_only_for_analysed_items(size):
         ], secondaries
         items_width = _items_pane_width(screen)
         if size == (235, 52):
-            reader = screen.query_one("#library-media-reader-shell")
+            reader = screen.query_one(".library-media-route")
             assert items_width == 145
             assert reader.work.region.width == 46
         else:
