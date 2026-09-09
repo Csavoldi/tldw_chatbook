@@ -158,6 +158,7 @@ def _sync_tree_projection(
     canvas: LibraryNotesCanvas, projection: LibraryNotesTreeProjection
 ) -> None:
     canvas.sync_state(
+        pane_width=canvas.pane_width,
         list_state=_list_state(),
         sort_mode="newest",
         filter_value="",
@@ -332,6 +333,7 @@ async def test_lasting_setup_retained_wrapper_preserves_input_and_pins_action_at
         folder = app.query_one("#notes-sync-folder-choose", Button)
         folder.focus()
         canvas.sync_state(
+            pane_width=canvas.pane_width,
             list_state=None,
             sort_mode="newest",
             filter_value="",

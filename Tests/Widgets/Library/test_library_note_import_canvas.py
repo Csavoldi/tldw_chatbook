@@ -752,6 +752,7 @@ async def test_wrapper_handler_keeps_destination_input_mounted_during_burst_typi
                 check_disabled_reason=error,
             )
             self.query_one(LibraryNotesCanvas).sync_state(
+                pane_width=self.query_one(LibraryNotesCanvas).pane_width,
                 list_state=None,
                 sort_mode="newest",
                 filter_value="",
@@ -815,6 +816,7 @@ async def test_wrapper_keeps_applied_collision_rename_focused_when_edit_clears_c
                 import_disabled_reason="Choose how to handle the folder name collision.",
             )
             self.query_one(LibraryNotesCanvas).sync_state(
+                pane_width=self.query_one(LibraryNotesCanvas).pane_width,
                 list_state=None,
                 sort_mode="newest",
                 filter_value="",
