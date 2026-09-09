@@ -1475,3 +1475,13 @@ async def test_failed_character_owner_is_released_when_selection_context_changes
         rendered = app.screen.state.render_text()
         assert "First chat" not in rendered
         assert ("Active chat" if transition == "mode" else "Second chat") in rendered
+
+
+def test_keyword_page_loader_has_one_controller_owner():
+    from tldw_chatbook.UI.Console_Modules.character_context import (
+        ConsoleCharacterContextController,
+    )
+    from tldw_chatbook.UI.Screens.chat_screen import ChatScreen
+
+    assert not hasattr(ChatScreen, "_load_console_character_switcher_page")
+    assert callable(ConsoleCharacterContextController.keyword_page)
