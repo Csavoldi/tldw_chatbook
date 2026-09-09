@@ -7,6 +7,8 @@ and 32072 -- the polish-shell group of the critique-8 fix wave.
 from __future__ import annotations
 
 import pytest
+from rich.cells import cell_len
+from textual.geometry import Region
 from textual.widgets import Button, Input, Static, TextArea
 
 from tldw_chatbook import config as app_config
@@ -915,7 +917,7 @@ async def test_chunking_lab_escape_leaves_from_the_focused_sample_editor(
 
 
 @pytest.mark.asyncio
-async def test_rail_search_box_clears_and_does_not_carry_a_query_across_canvases():
+async def test_rail_search_box_clears_and_does_not_carry_a_query_across_canvases() -> None:
     """task-32069: the box kept the last query with no way to clear it."""
     app = _build_test_app()
     _seed_conversations(app, _two_conversations(), notes=_two_notes())
@@ -929,6 +931,9 @@ async def test_rail_search_box_clears_and_does_not_carry_a_query_across_canvases
         await pilot.pause()
 
         clear = screen.query_one("#library-search-clear", Button)
+        assert clear.region.width == 3
+        painted = clear.render_lines(Region(0, 0, 3, 3))[1]
+        assert painted.cell_length == cell_len(painted.text) == 3
         clear.press()
         await pilot.pause()
         assert screen.query_one("#library-search-input", Input).value == ""

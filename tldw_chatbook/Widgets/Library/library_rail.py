@@ -762,6 +762,7 @@ class LibraryRail(PostRecomposeCallback, RecomposeCaptureGuard, Vertical):
             # empty it -- the next keystroke replaced it, but a reader looking
             # at a stale query had no affordance at all.
             clear = Button("x", id="library-search-clear", compact=True)
+            clear.styles.line_pad = 0
             clear.tooltip = "Clear the Library search box"
             yield clear
         for section in self.shell.sections:
