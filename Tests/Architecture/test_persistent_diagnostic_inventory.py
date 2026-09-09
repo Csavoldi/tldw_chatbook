@@ -194,8 +194,10 @@ REVIEWED_METADATA_ONLY_DIAGNOSTICS = {
         ),
         "Failed to persist the Library ingest backend": (),
         "Failed to persist Library ingest options": (),
-        "Failed to restore a Library note": (),
         # Removed by 5dd1077df6 when generic Collection restore was retired.
+    },
+    "tldw_chatbook/UI/Library_Modules/library_notes_controller.py": {
+        "Failed to restore a Library note": (),
     },
     "tldw_chatbook/UI/Library_Modules/canvas_sync.py": {
         "canvas sync failed": ("kind",),

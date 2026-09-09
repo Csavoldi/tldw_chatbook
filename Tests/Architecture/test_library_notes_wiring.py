@@ -81,7 +81,8 @@ from tldw_chatbook.UI.Library_Modules.library_notes_state import (
 #: SECOND subsystem writes -- see below), so 100 move. Pinned here so a field
 #: silently added to or dropped from the dataclass fails loudly instead of
 #: quietly resizing the shim surface this file checks.
-_EXPECTED_NOTES_STATE_FIELD_COUNT = 100
+# PR-2427 removes the inert auto_sync_timer in its new state owner (TASK-31909).
+_EXPECTED_NOTES_STATE_FIELD_COUNT = 99
 
 #: The 3 WIRING attributes the state PR deliberately left on ``LibraryScreen``
 #: (the ``_conversation_reader_controller``/``_library_media_browse_
@@ -584,7 +585,7 @@ _NOTES_CONTROLLER_BOUND_NAMES: tuple[str, ...] = (
     "_library_note_import_controller",
     "_library_note_session",
     "_library_notes_sync_controller",
-    # -- screen-resident methods a moved body still calls (named late-binding callables) (68)
+    # -- screen-resident methods a moved body still calls (named late-binding callables) (69)
     "_acknowledge_library_destination_change",
     "_active_library_rail",
     "_advance_library_stage_interaction",
@@ -632,6 +633,7 @@ _NOTES_CONTROLLER_BOUND_NAMES: tuple[str, ...] = (
     "_patch_library_note_list_from_session",
     "_project_library_media_stage_classes",
     "_push_library_note_import_picker",
+    "_reconcile_library_notes_tree_mutation",
     "_refresh_library_note_detail",
     "_refresh_local_source_snapshot",
     "_register_footer_shortcuts",
@@ -858,8 +860,8 @@ THREE of these names appear in NO moved body at all and would be missed by
         LibraryNotesController,
     )
 
-    assert len(_NOTES_CONTROLLER_BOUND_NAMES) == 102, (
-        f"expected 102 bound names, got {len(_NOTES_CONTROLLER_BOUND_NAMES)}"
+    assert len(_NOTES_CONTROLLER_BOUND_NAMES) == 103, (
+        f"expected 103 bound names, got {len(_NOTES_CONTROLLER_BOUND_NAMES)}"
     )
     assert len(set(_NOTES_CONTROLLER_BOUND_NAMES)) == len(
         _NOTES_CONTROLLER_BOUND_NAMES
