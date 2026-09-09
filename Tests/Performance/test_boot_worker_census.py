@@ -27,6 +27,8 @@ No allowlist row changed for that task -- the four staggered members kept
 their (name, group) identity and merely moved from ``on_mount`` to the
 post-``_ui_ready`` tier. They remain allowed, but may start after this
 census's settle window if preceding workers are still running.
+The census waits for its required immediate start identities as well as its
+minimum settle window, without requiring the queued background workers.
 
 Raising/extending: when this fails, the message prints the unlisted
 starters. Name the feature that added each, decide whether it must really
@@ -44,8 +46,9 @@ Documented blind spots (what a start-record census cannot see):
   can beat four heavy simultaneous ones; only a latency probe (22215's
   before/after AC) sees the difference. A listed worker that grows a bigger
   payload is invisible here.
-* The settle window is ``_ui_ready`` + 1.0 s. A boot-adjacent worker first
-  started later than that (or one gated off ``TLDW_TEST_MODE=1``, which
+* The sample is taken after both ``_ui_ready`` + 1.0 s and the required
+  worker starts (bounded by the subprocess deadline). A boot-adjacent
+  worker first started later than that (or gated off ``TLDW_TEST_MODE=1``, which
   every boot guard sets) is not censused. Members that only START sometimes
   (stall-triggered persistence, fresh-profile one-offs) are allowlisted but
   not asserted present, so their absence never fails and their growth is
@@ -152,6 +155,7 @@ import json
 import threading
 
 records = {"workers": [], "threads": []}
+expected_workers = """ + repr(EXPECTED_BOOT_WORKERS) + """
 
 import textual.worker_manager as _wm
 
@@ -195,9 +199,14 @@ async def main() -> None:
     async with app.run_test(size=(120, 40)):
         while not getattr(app, "_ui_ready", False):
             await asyncio.sleep(0.005)
-        # Settle window: the deferred-startup timers (0.1-0.2 s) fire inside
-        # it, so their workers are censused too.
+        # Settle window: retain the minimum observation period, then wait
+        # for required starts behind the serial admission gate. The parent
+        # subprocess deadline still rejects a missing/stranded worker.
         await asyncio.sleep(1.0)
+        while not expected_workers <= {
+            (worker["name"], worker["group"]) for worker in records["workers"]
+        }:
+            await asyncio.sleep(0.005)
         print("CENSUS_JSON:" + json.dumps(records), flush=True)
 
 
@@ -270,14 +279,37 @@ def _boot_and_census(tmp_path: Path) -> dict[str, list[dict[str, str | None]]]:
 
 
 @pytest.mark.integration
+@pytest.mark.parametrize("delayed_recovery", [False, True])
 def test_boot_worker_and_thread_starts_stay_within_the_allowlist(
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    delayed_recovery: bool,
 ) -> None:
     """Every worker/thread started during boot is on the reviewed allowlist.
 
     Args:
         tmp_path: pytest fixture; isolated dir for the subprocess's profile.
+        monkeypatch: Fixture isolating the controlled child-probe variant.
+        delayed_recovery: Hold the first staggered worker past the old sample.
     """
+    if delayed_recovery:
+        # Keep the real recovery body, but hold its admission slot until two
+        # seconds after readiness. The old one-second sample misses backfill.
+        setup = "    app = tldw_chatbook.app.TldwCli()\n"
+        ready = "        # Settle window:"
+        assert setup in _CENSUS_SCRIPT and ready in _CENSUS_SCRIPT
+        script = _CENSUS_SCRIPT.replace(setup, setup + """
+    release_recovery = threading.Event()
+    real_recovery = app.ensure_actor_pack_recovery
+
+    def delayed_recovery():
+        assert release_recovery.wait(10), "controlled recovery was not released"
+        real_recovery()
+
+    app.ensure_actor_pack_recovery = delayed_recovery
+""").replace(ready, """        asyncio.get_running_loop().call_later(2.0, release_recovery.set)
+""" + ready)
+        monkeypatch.setattr(sys.modules[__name__], "_CENSUS_SCRIPT", script)
     records = _boot_and_census(tmp_path)
 
     started_workers = {(w["name"], w["group"]) for w in records["workers"]}
